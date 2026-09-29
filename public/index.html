@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#e8590c" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>ทายคำกับเพื่อน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <!-- หน้าเข้าสู่ระบบ -->
+    <section id="login" class="card">
+      <h1>🎯 ทายคำกับเพื่อน</h1>
+      <p class="muted">ทุกคนได้คำลับไม่ซ้ำกัน — เก็บคำตัวเองไว้ แล้วทายคำของเพื่อนให้ได้!</p>
+      <form id="loginForm">
+        <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" required /></label>
+        <label>รหัสห้อง<input id="codeInput" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="เช่น PARTY1" required /></label>
+        <button type="submit">เข้าห้อง</button>
+        <p id="loginError" class="error"></p>
+      </form>
+    </section>
+
+    <!-- ห้องเกม -->
+    <section id="room" hidden>
+      <header class="topbar">
+        <div>ห้อง <b id="roomCode"></b> <span id="roundInfo" class="muted"></span></div>
+        <button id="shareBtn" class="secondary small" type="button">📤 ชวนเพื่อน</button>
+      </header>
+
+      <div id="banner" class="banner"></div>
+
+      <div class="layout">
+        <div class="col">
+          <div id="myCard"></div>
+          <div id="players" class="players"></div>
+
+          <div id="hostControls" class="card" hidden>
+            <label>หมวด
+              <select id="categorySelect"></select>
+            </label>
+            <button id="startBtn">เริ่มรอบใหม่</button>
+            <button id="endBtn" class="secondary" hidden>จบรอบ/เฉลยทั้งหมด</button>
+            <p id="hostError" class="error"></p>
+          </div>
+          <p id="waitHost" class="muted center" hidden>รอหัวห้องกดเริ่มเกม…</p>
+
+        </div>
+
+        <aside class="side">
+          <div id="lbCard" class="card lb">
+            <h3>🏆 อันดับคะแนน</h3>
+            <ol id="leaderboard"></ol>
+          </div>
+          <div class="card feed">
+            <h3>ความเคลื่อนไหว</h3>
+            <ul id="feed"></ul>
+          </div>
+        </aside>
+      </div>
+
+      <!-- แถบทายคำ: ติดล่างจอบนมือถือ -->
+      <form id="guessForm" class="guessbar" hidden>
+        <div class="target-line">ทายคำของ <select id="targetSelect" aria-label="เลือกคนที่จะทาย"></select></div>
+        <div class="guess-row">
+          <input id="guessInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" placeholder="พิมพ์คำที่ทาย…" aria-label="คำที่ทาย" />
+          <button type="submit">ทาย!</button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "word-guess-game",
+  "version": "1.0.0",
+  "description": "เกมทายคำกับเพื่อน — ทุกคนได้คำไม่ซ้ำกัน เห็นคำของเพื่อน แต่ต้องทายคำของตัวเอง",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

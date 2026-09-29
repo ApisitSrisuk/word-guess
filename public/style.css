@@ -1,0 +1,203 @@
+/* ออกแบบสำหรับมือถือเป็นหลัก แล้วขยายเป็น 2 คอลัมน์บนจอใหญ่ */
+:root {
+  --bg: #fdf6ec;
+  --card: #ffffff;
+  --ink: #2b2118;
+  --muted: #8a7a6a;
+  --accent: #e8590c;
+  --accent-ink: #ffffff;
+  --ok: #2f9e44;
+  --bad: #c92a2a;
+  --line: #eadfce;
+  --hidden: #ffe8cc;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1712;
+    --card: #28211a;
+    --ink: #f3ebe2;
+    --muted: #a8998a;
+    --accent: #ff8a3d;
+    --accent-ink: #1c1712;
+    --ok: #69db7c;
+    --bad: #ff6b6b;
+    --line: #3d3329;
+    --hidden: #4a3420;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: 'Prompt', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  overscroll-behavior-y: contain;
+}
+main { max-width: 1000px; margin: 0 auto; padding: 12px 16px calc(24px + var(--safe-b)); }
+h1 { margin: 0 0 8px; font-size: 1.6rem; }
+h3 { margin: 0 0 8px; font-size: 1rem; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+#login { max-width: 420px; margin: 8vh auto 0; }
+label { display: block; margin-bottom: 12px; font-weight: 600; }
+/* font-size 16px กัน iOS ซูมตอนแตะช่องพิมพ์ */
+input, select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  min-height: 48px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  min-height: 48px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:active { transform: scale(.97); }
+#login button, #hostControls button { width: 100%; margin-top: 4px; }
+button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+button.small { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.error { color: var(--bad); min-height: 1.2em; margin: 8px 0 0; }
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }
+
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+.banner { text-align: center; font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; }
+.banner:empty { display: none; }
+.layout { display: grid; grid-template-columns: 1fr; gap: 0; }
+
+/* การ์ดคำลับของฉัน — ใหญ่ อยู่บนสุด แตะเพื่อซ่อน/แสดง */
+.mycard {
+  background: var(--card);
+  border: 2px solid var(--accent);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 14px;
+  text-align: center;
+  user-select: none;
+}
+.mycard .label { font-size: .9rem; color: var(--muted); display: flex; justify-content: space-between; }
+.mycard .big {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 8px 0 4px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--hidden);
+  overflow-wrap: anywhere;
+  transition: filter .15s;
+}
+.mycard .big.blur { filter: blur(12px); }
+.mycard .hint { font-size: .85rem; color: var(--muted); }
+
+.players { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+.player {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 26px 8px 10px;
+  text-align: center;
+  position: relative;
+  min-width: 0;
+}
+.player.off { opacity: .5; }
+.player .name { font-weight: 600; overflow-wrap: anywhere; }
+.player .word {
+  margin: 8px 0;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 1.15rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.player .word.secret { background: var(--hidden); letter-spacing: 4px; }
+.player .status { font-size: .8rem; color: var(--muted); }
+.player .score { position: absolute; top: 6px; right: 10px; font-size: .75rem; color: var(--muted); }
+.player .crown { position: absolute; top: 4px; left: 8px; }
+.player.target { cursor: pointer; }
+.player.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+
+.feed ul { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow-y: auto; font-size: .9rem; }
+.feed li { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+
+/* แถบทายคำติดล่างจอ */
+.guessbar {
+  position: sticky;
+  bottom: 0;
+  margin: 0 -16px;
+  padding: 10px 16px calc(10px + var(--safe-b));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, .08);
+  z-index: 5;
+}
+.target-line { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 8px; white-space: nowrap; }
+.target-line select { margin: 0; min-height: 40px; }
+.guess-row { display: flex; gap: 8px; }
+.guess-row input { margin: 0; flex: 1; min-width: 0; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+  text-align: center;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+
+/* จอใหญ่ (แท็บเล็ต/คอม) */
+@media (min-width: 760px) {
+  .layout { grid-template-columns: 1fr 280px; gap: 16px; }
+  .players { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .feed ul { max-height: 420px; }
+  .guessbar { max-width: 600px; margin: 0 auto; border: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+}
+
+/* ตารางอันดับ */
+.lb ol { list-style: none; padding: 0; margin: 0; }
+.lb li { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px dashed var(--line); }
+.lb li:last-child { border-bottom: 0; }
+.lb li.me { font-weight: 700; color: var(--accent); }
+.lb .rank { width: 2em; text-align: center; font-size: 1.15rem; }
+.lb .lb-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.lb .lb-score { font-weight: 700; font-variant-numeric: tabular-nums; }
+.lb.spotlight { border: 2px solid var(--accent); }
+.lb.spotlight li:first-child { font-size: 1.15rem; }
+
+/* มือถือ: จบรอบแล้วยกตารางอันดับขึ้นไปไว้บนสุด */
+@media (max-width: 759px) {
+  .layout { display: flex; flex-direction: column; }
+  .side { display: contents; }
+  .lb.spotlight { order: -1; }
+}
