@@ -29,10 +29,14 @@
     <section id="room" hidden>
       <header class="topbar">
         <div>ห้อง <b id="roomCode"></b> <span id="roundInfo" class="muted"></span></div>
-        <button id="shareBtn" class="secondary small" type="button">📤 ชวนเพื่อน</button>
+        <div class="top-actions">
+          <button id="chatBtn" class="small" type="button">💬 แชท<span id="chatBadge" class="badge" hidden></span></button>
+          <button id="shareBtn" class="secondary small" type="button" aria-label="ชวนเพื่อน">📤</button>
+        </div>
       </header>
 
       <div id="banner" class="banner"></div>
+      <ol id="turnStrip" class="turn-strip" hidden aria-label="ลำดับตาเล่น"></ol>
 
       <div class="layout">
         <div class="col">
@@ -65,14 +69,44 @@
 
       <!-- แถบทายคำ: ติดล่างจอบนมือถือ -->
       <form id="guessForm" class="guessbar" hidden>
-        <div class="target-line">ทายคำของ <select id="targetSelect" aria-label="เลือกคนที่จะทาย"></select></div>
-        <div class="guess-row">
-          <input id="guessInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" placeholder="พิมพ์คำที่ทาย…" aria-label="คำที่ทาย" />
-          <button type="submit">ทาย!</button>
+        <div id="waitTurn" class="wait-turn" hidden>
+          <span id="waitTurnText"></span>
+          <button id="skipBtn" type="button" class="secondary small" hidden>⏭️ ข้ามตา</button>
+        </div>
+        <div id="myTurn">
+          <div class="target-line">
+            <span>🫵 ตาคุณ! ทายคำของ</span>
+            <select id="targetSelect" aria-label="เลือกคนที่จะทาย"></select>
+          </div>
+          <div class="guess-row">
+            <input id="guessInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" placeholder="พิมพ์คำที่ทาย…" aria-label="คำที่ทาย" />
+            <button type="submit">ทาย!</button>
+            <button id="passBtn" type="button" class="secondary" title="ผ่านตานี้">ผ่าน</button>
+          </div>
         </div>
       </form>
     </section>
   </main>
+
+  <!-- แชท: เต็มจอบนมือถือ / ลิ้นชักด้านขวาบนคอม -->
+  <div id="chatSheet" class="sheet" hidden role="dialog" aria-label="แชท">
+    <div class="sheet-head">
+      <b>💬 แชทในห้อง</b>
+      <button id="chatClose" class="secondary small" type="button">ปิด ✕</button>
+    </div>
+    <ul id="chatList" class="chat-list"></ul>
+    <div class="quick">
+      <button type="button" class="chip" data-q="✅ ใช่">✅ ใช่</button>
+      <button type="button" class="chip" data-q="❌ ไม่ใช่">❌ ไม่ใช่</button>
+      <button type="button" class="chip" data-q="🤏 ใกล้แล้ว!">🤏 ใกล้แล้ว!</button>
+      <button type="button" class="chip" data-q="🤔 ไม่แน่ใจ">🤔 ไม่แน่ใจ</button>
+      <button type="button" class="chip" data-q="😂">😂</button>
+    </div>
+    <form id="chatForm" class="chat-form">
+      <input id="chatInput" maxlength="200" autocomplete="off" enterkeyhint="send" placeholder="พิมพ์ข้อความ… ถามใบ้ได้เลย" aria-label="ข้อความ" />
+      <button type="submit">ส่ง</button>
+    </form>
+  </div>
   <div id="toast" class="toast" hidden></div>
 
   <script src="/socket.io/socket.io.js"></script>

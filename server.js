@@ -47,10 +47,27 @@ io.on('connection', (socket) => {
       } catch (e) {
         return ack({ error: e.message });
       }
+      io.to(code).emit('chat', room.systemChat(`👋 ${name} เข้าห้อง`));
     }
     socket.join(code);
     ack({ ok: true });
+    socket.emit('chatHistory', room.chat);
     broadcast(room);
+  });
+
+  let lastChatAt = 0;
+  socket.on('chat', (text, ack = () => {}) => {
+    if (!room) return ack({ error: 'ยังไม่ได้เข้าห้อง' });
+    const now = Date.now();
+    if (now - lastChatAt < 400) return ack({ error: 'พิมพ์เร็วไปนิด ใจเย็น ๆ 😅' });
+    try {
+      const msg = room.addChat(socket.id, text);
+      lastChatAt = now;
+      io.to(room.code).emit('chat', msg);
+      ack({ ok: true });
+    } catch (e) {
+      ack({ error: e.message });
+    }
   });
 
   const hostOnly = (fn) => (...args) => {
@@ -65,8 +82,15 @@ io.on('connection', (socket) => {
     broadcast(room);
   };
 
-  socket.on('start', hostOnly((category) => room.start(category)));
+  socket.on('start', hostOnly((category) => {
+    room.start(category);
+    io.to(room.code).emit('chat', room.systemChat(`🎲 รอบ ${room.round} เริ่มแล้ว — หมวด ${room.category}`));
+  }));
   socket.on('endRound', hostOnly(() => room.endRound()));
+
+  socket.on('pass', () => {
+    if (room && room.pass(socket.id)) broadcast(room);
+  });
 
   socket.on('guess', ({ targetId, text } = {}, ack = () => {}) => {
     if (!room) return;
@@ -80,14 +104,17 @@ io.on('connection', (socket) => {
     const p = room.players.get(socket.id);
     if (!p) return;
     p.connected = false;
+    // หลุดตอนถึงตาตัวเอง → ส่งตาให้คนถัดไป
+    if (room.state === 'playing' && room.currentTurnId() === socket.id) room.advanceTurn();
     broadcast(room);
     // เผื่อเวลา 60 วินาทีให้กลับเข้าห้องด้วยชื่อเดิม
     const r = room;
     leaveTimers.set(socket.id, setTimeout(() => {
       leaveTimers.delete(socket.id);
       r.removePlayer(socket.id);
-      if (r.players.size === 0) rooms.delete(r.code);
-      else broadcast(r);
+      if (r.players.size === 0) return rooms.delete(r.code);
+      io.to(r.code).emit('chat', r.systemChat(`🚪 ${p.name} ออกจากห้อง`));
+      broadcast(r);
     }, 60_000));
   });
 });

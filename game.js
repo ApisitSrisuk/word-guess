@@ -30,7 +30,69 @@ class Room {
     this.category = null;
     this.round = 0;
     this.feed = [];
+    this.chat = [];
+    this.chatSeq = 0;
     this.usedWords = new Set();
+    this.turnOrder = []; // ลำดับตาเล่น (สุ่มใหม่ทุกรอบ)
+    this.turn = 0;
+  }
+
+  currentTurnId() {
+    return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
+  }
+
+  // ยังมีคำของคนอื่นเหลือให้ทายไหม
+  hasTarget(id) {
+    return [...this.players.values()].some((t) => t.id !== id && t.word && !t.guessedBy);
+  }
+
+  // ไปตาถัดไป — ข้ามคนที่หลุดการเชื่อมต่อ หรือไม่มีคำเหลือให้ทาย
+  advanceTurn() {
+    const n = this.turnOrder.length;
+    if (!n) return;
+    for (let i = 1; i <= n; i++) {
+      const idx = (this.turn + i) % n;
+      const p = this.players.get(this.turnOrder[idx]);
+      if (p && p.connected && this.hasTarget(p.id)) { this.turn = idx; return; }
+    }
+    this.turn = (this.turn + 1) % n;
+  }
+
+  // ผ่านตา: เจ้าของตาหรือหัวห้อง (กรณีเพื่อนไม่อยู่) กดข้ามได้
+  pass(id) {
+    if (this.state !== 'playing') return false;
+    const cur = this.players.get(this.currentTurnId());
+    if (id !== this.currentTurnId() && id !== this.hostId) return false;
+    this.feed.push({ type: 'pass', name: cur ? cur.name : '?' });
+    this.advanceTurn();
+    return true;
+  }
+
+  // ข้อความแชท — ห้ามพิมพ์คำลับของตัวเองระหว่างรอบ (กันหลุดโดยไม่ตั้งใจ)
+  addChat(id, text) {
+    const p = this.players.get(id);
+    if (!p) throw new Error('ไม่ได้อยู่ในห้อง');
+    text = String(text || '').trim().slice(0, 200);
+    if (!text) throw new Error('ข้อความว่าง');
+    if (this.state === 'playing' && p.word && !p.guessedBy) {
+      const n = normalize(text);
+      // คำสั้นมาก (เช่น "ตา") ไม่ตรวจ เพราะไปตรงกับคำอื่นเยอะเกิน
+      if (p.word.answers.some((a) => a.length >= 3 && n.includes(a))) {
+        throw new Error('🙊 ห้ามพิมพ์คำลับของตัวเองในแชท!');
+      }
+    }
+    return this.pushChat({ name: p.name, text });
+  }
+
+  systemChat(text) {
+    return this.pushChat({ system: true, text });
+  }
+
+  pushChat(msg) {
+    msg = { id: ++this.chatSeq, ts: Date.now(), ...msg };
+    this.chat.push(msg);
+    if (this.chat.length > 100) this.chat.shift();
+    return msg;
   }
 
   addPlayer(id, name) {
@@ -38,7 +100,10 @@ class Room {
     this.players.set(id, player);
     if (!this.hostId) this.hostId = id;
     // เข้าห้องกลางรอบ → แจกคำที่ยังไม่มีใครใช้ให้ทันที
-    if (this.state === 'playing') this.assignWord(player);
+    if (this.state === 'playing') {
+      this.assignWord(player);
+      this.turnOrder.push(id); // ต่อท้ายคิว
+    }
     return player;
   }
 
@@ -56,11 +121,24 @@ class Room {
     p.connected = true;
     this.players.set(newId, p);
     if (this.hostId === oldId) this.hostId = newId;
+    this.turnOrder = this.turnOrder.map((t) => (t === oldId ? newId : t));
     return p;
   }
 
   removePlayer(id) {
     this.players.delete(id);
+    const idx = this.turnOrder.indexOf(id);
+    if (idx !== -1) {
+      const wasCurrent = idx === this.turn % this.turnOrder.length;
+      this.turnOrder.splice(idx, 1);
+      if (idx < this.turn) this.turn -= 1;
+      if (this.turn >= this.turnOrder.length) this.turn = 0;
+      // ถ้าคนที่ออกเป็นเจ้าของตา ตาจะตกไปที่คนถัดไปในคิวอยู่แล้ว (index เดิม)
+      if (wasCurrent && this.turnOrder.length) {
+        const p = this.players.get(this.currentTurnId());
+        if (p && !p.connected) this.advanceTurn();
+      }
+    }
     if (this.hostId === id) {
       const next = [...this.players.values()].find((p) => p.connected) || [...this.players.values()][0];
       this.hostId = next ? next.id : null;
@@ -99,6 +177,8 @@ class Room {
     this.feed = [];
     for (const p of players) p.word = null;
     for (const p of shuffle(players)) this.assignWord(p);
+    this.turnOrder = shuffle(players.map((p) => p.id));
+    this.turn = 0;
   }
 
   // ทายคำของผู้เล่นคนอื่น (ทายคำตัวเองไม่ได้)
@@ -107,6 +187,7 @@ class Room {
     const target = this.players.get(targetId);
     if (!me || !target || this.state !== 'playing') return null;
     if (target.id === me.id || !target.word || target.guessedBy) return null;
+    if (this.currentTurnId() !== id) return null; // ยังไม่ถึงตา
     const guess = String(text || '').trim().slice(0, 40);
     if (!guess) return null;
     const correct = target.word.answers.includes(normalize(guess));
@@ -119,6 +200,7 @@ class Room {
     }
     this.feed = this.feed.slice(-50);
     this.checkRoundEnd();
+    if (this.state === 'playing') this.advanceTurn();
     return correct;
   }
 
@@ -155,6 +237,8 @@ class Room {
       me: id,
       categories: CATEGORIES,
       feed: this.feed,
+      turnOrder: this.turnOrder,
+      currentTurn: this.state === 'playing' ? this.currentTurnId() : null,
       players: [...this.players.values()].map((p) => {
         const visible = p.id === id || p.guessedBy || reveal;
         return {

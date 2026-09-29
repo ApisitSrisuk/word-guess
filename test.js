@@ -30,30 +30,58 @@ for (let i = 0; i < 200; i++) {
   assert.ok(v.players.filter((p) => p.id !== 'p0').every((p) => p.word === null));
 }
 
-// ทายคำของคนอื่น: ผิด / ถูกด้วยคำตอบสำรอง / ทายคำตัวเองไม่ได้ / โบนัสคนรอด
+// ทายคำของคนอื่นตามลำดับตา: ทายคำตัวเองไม่ได้ / ยังไม่ถึงตาทายไม่ได้ / คำตอบสำรอง / โบนัสคนรอด
 const r = new Room('X');
 r.addPlayer('a', 'เอ');
 r.addPlayer('b', 'บี');
 r.addPlayer('c', 'ซี');
 r.start('จังหวัด');
+assert.deepStrictEqual([...r.turnOrder].sort(), ['a', 'b', 'c'], 'ทุกคนอยู่ในลำดับตา');
+r.turnOrder = ['a', 'b', 'c'];
+r.turn = 0;
 const b = r.players.get('b');
 b.word = { display: 'นครราชสีมา', answers: ['นครราชสีมา', 'โคราช'] };
-assert.strictEqual(r.guess('b', 'b', 'โคราช'), null, 'ทายคำตัวเองไม่ได้');
+assert.strictEqual(r.guess('a', 'a', 'x'), null, 'ทายคำตัวเองไม่ได้');
+assert.strictEqual(r.guess('c', 'b', 'โคราช'), null, 'ยังไม่ถึงตา');
 assert.strictEqual(r.guess('a', 'b', 'ขอนแก่น'), false);
-assert.strictEqual(r.guess('a', 'b', 'จังหวัด โคราช'), true);
-assert.strictEqual(r.players.get('a').score, 2);
-assert.strictEqual(r.viewFor('c').players.find((p) => p.id === 'b').word, 'นครราชสีมา');
-assert.strictEqual(r.guess('c', 'b', 'โคราช'), null, 'โดนทายแล้วทายซ้ำไม่ได้');
-r.guess('b', 'a', r.players.get('a').word.display);
-assert.strictEqual(r.state, 'playing');
+assert.strictEqual(r.currentTurnId(), 'b', 'ทายผิดแล้วเปลี่ยนตา');
+assert.strictEqual(r.guess('b', 'a', r.players.get('a').word.display), true);
+assert.strictEqual(r.currentTurnId(), 'c');
+assert.strictEqual(r.guess('c', 'b', 'จังหวัด โคราช'), true);
+assert.strictEqual(r.players.get('c').score, 2);
+assert.strictEqual(r.viewFor('a').players.find((p) => p.id === 'b').word, 'นครราชสีมา');
+assert.strictEqual(r.currentTurnId(), 'a');
+assert.strictEqual(r.guess('a', 'b', 'โคราช'), null, 'โดนทายแล้วทายซ้ำไม่ได้');
+assert.ok(r.pass('a'));
+assert.strictEqual(r.currentTurnId(), 'b', 'ผ่านตาได้');
+assert.ok(!r.pass('c'), 'ผ่านตาคนอื่นไม่ได้ (ถ้าไม่ใช่หัวห้อง)');
 r.endRound();
 assert.strictEqual(r.state, 'reveal');
-assert.strictEqual(r.players.get('c').score, 3, 'คนรอดได้ +3');
+assert.strictEqual(r.players.get('c').score, 5, 'คนรอดได้ +3');
+
+// แชท: ห้ามพิมพ์คำลับตัวเองระหว่างรอบ
+r.start('จังหวัด');
+r.players.get('a').word = { display: 'เชียงใหม่', answers: ['เชียงใหม่'] };
+r.players.get('b').word = { display: 'ภูเก็ต', answers: ['ภูเก็ต'] };
+assert.throws(() => r.addChat('a', 'คำของฉันคือ เชียง ใหม่'));
+assert.strictEqual(r.addChat('a', 'ถามมาได้เลย').text, 'ถามมาได้เลย');
+assert.strictEqual(r.addChat('b', 'เชียงใหม่ใช่ไหม').name, 'บี', 'พิมพ์คำของคนอื่นได้');
+
+// ผู้เล่นออกกลางรอบ ลำดับตาต้องไม่พัง
+r.turnOrder = ['a', 'b', 'c'];
+r.turn = 2;
+r.removePlayer('a');
+assert.strictEqual(r.currentTurnId(), 'c');
+r.removePlayer('c');
+assert.strictEqual(r.currentTurnId(), 'b');
+r.addPlayer('a', 'เอ');
+r.addPlayer('c', 'ซี');
 
 // ผู้เล่นเข้าห้องกลางรอบได้คำที่ไม่ซ้ำ
 r.start('ผลไม้');
-r.addPlayer('c', 'ซี');
+r.addPlayer('d', 'ดี');
 const ws = [...r.players.values()].map((p) => p.word.display);
-assert.strictEqual(new Set(ws).size, 3);
+assert.strictEqual(new Set(ws).size, 4);
+assert.ok(r.turnOrder.includes('d'), 'คนเข้ากลางรอบได้ต่อคิว');
 
 console.log('ผ่านทุกเทสต์ ✅');

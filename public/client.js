@@ -72,6 +72,9 @@ function notify(prev, s) {
     peek = false;
     toast(`🎲 รอบใหม่! หมวด: ${s.category}`, 150);
   }
+  if (s.state === 'playing' && s.currentTurn === s.me && (!prev || prev.currentTurn !== s.me || prev.round !== s.round)) {
+    setTimeout(() => toast('🫵 ถึงตาคุณแล้ว! ทายคำของเพื่อนได้เลย', [120, 60, 120]), prev && prev.round !== s.round ? 1200 : 0);
+  }
   if (prev && s.state === 'reveal' && prev.state === 'playing') toast('🏁 จบรอบ! ดูเฉลยและอันดับได้เลย', [100, 60, 100]);
   const myName = s.players.find((p) => p.id === s.me)?.name;
   const fresh = s.feed.length >= lastFeedLen ? s.feed.slice(lastFeedLen) : s.feed;
@@ -115,6 +118,86 @@ $('guessForm').addEventListener('submit', (e) => {
   $('guessInput').value = '';
 });
 
+$('passBtn').addEventListener('click', () => socket.emit('pass'));
+$('skipBtn').addEventListener('click', () => {
+  const cur = state.players.find((p) => p.id === state.currentTurn);
+  if (confirm(`ข้ามตาของ ${cur ? cur.name : 'คนนี้'}?`)) socket.emit('pass');
+});
+
+// ---------- แชท ----------
+let chatOpen = false;
+let unread = 0;
+const chatMsgs = [];
+
+function renderChatMsg(m) {
+  const li = document.createElement('li');
+  if (m.system) {
+    li.className = 'sys';
+    li.textContent = m.text;
+  } else {
+    const mine = session && m.name === session.name;
+    li.className = mine ? 'mine' : '';
+    li.innerHTML = `${mine ? '' : `<div class="who">${esc(m.name)}</div>`}<span class="bubble">${esc(m.text)}</span>`;
+  }
+  return li;
+}
+function scrollChat() { $('chatList').scrollTop = $('chatList').scrollHeight; }
+function setUnread(n) {
+  unread = n;
+  $('chatBadge').hidden = n === 0;
+  $('chatBadge').textContent = n > 9 ? '9+' : n;
+}
+
+socket.on('chatHistory', (list) => {
+  chatMsgs.length = 0;
+  chatMsgs.push(...list);
+  $('chatList').replaceChildren(...list.map(renderChatMsg));
+  scrollChat();
+});
+socket.on('chat', (m) => {
+  if (chatMsgs.some((x) => x.id === m.id)) return;
+  chatMsgs.push(m);
+  if (chatMsgs.length > 100) { chatMsgs.shift(); $('chatList').firstChild?.remove(); }
+  const nearBottom = $('chatList').scrollHeight - $('chatList').scrollTop - $('chatList').clientHeight < 80;
+  $('chatList').append(renderChatMsg(m));
+  if (nearBottom) scrollChat();
+  const fromMe = session && m.name === session.name;
+  if (!chatOpen && !m.system && !fromMe) {
+    setUnread(unread + 1);
+    if (navigator.vibrate) navigator.vibrate(30);
+  }
+});
+
+function openChat() {
+  chatOpen = true;
+  $('chatSheet').hidden = false;
+  setUnread(0);
+  scrollChat();
+  $('chatInput').focus();
+}
+function closeChat() {
+  chatOpen = false;
+  $('chatSheet').hidden = true;
+}
+$('chatBtn').addEventListener('click', () => (chatOpen ? closeChat() : openChat()));
+$('chatClose').addEventListener('click', closeChat);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && chatOpen) closeChat(); });
+
+function sendChat(text) {
+  text = text.trim();
+  if (!text) return;
+  socket.emit('chat', text, (res) => {
+    if (res.error) toast(res.error, 150);
+  });
+}
+$('chatForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  sendChat($('chatInput').value);
+  $('chatInput').value = '';
+  $('chatInput').focus();
+});
+document.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => sendChat(b.dataset.q)));
+
 // แตะการ์ดเพื่อนเพื่อเลือกคนที่จะทาย
 $('players').addEventListener('click', (e) => {
   const card = e.target.closest('.player.target');
@@ -149,9 +232,11 @@ function render() {
   const s = state;
   const me = s.players.find((p) => p.id === s.me);
   const isHost = s.hostId === s.me;
-  const targets = s.state === 'playing' && me && me.hasWord
+  const myTurn = s.state === 'playing' && s.currentTurn === s.me;
+  const targets = myTurn
     ? s.players.filter((p) => p.id !== s.me && p.hasWord && !p.guessedBy)
     : [];
+  const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
   // ตัวเลือกคนที่จะทาย (คงค่าที่เลือกไว้ถ้ายังทายได้)
   const tsel = $('targetSelect');
@@ -163,9 +248,19 @@ function render() {
   $('roomCode').textContent = s.code;
   $('roundInfo').textContent = s.round ? `· รอบ ${s.round}` : `· ${s.players.length} คน`;
 
+  // ลำดับตาเล่น
+  $('turnStrip').hidden = s.state !== 'playing';
+  $('turnStrip').innerHTML = s.turnOrder.map((id, i) => {
+    const p = s.players.find((x) => x.id === id);
+    if (!p) return '';
+    const cls = [id === s.currentTurn && 'now', !p.connected && 'off'].filter(Boolean).join(' ');
+    return `<li class="${cls}">${i + 1}. ${esc(p.name)}${id === s.me ? ' (ฉัน)' : ''}</li>`;
+  }).join('');
+  $('turnStrip').querySelector('.now')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+
   $('banner').textContent = {
     lobby: 'รอเริ่มเกม',
-    playing: `หมวด: ${s.category}`,
+    playing: `หมวด: ${s.category}${turnPlayer ? ` · ตาของ ${turnPlayer.id === s.me ? 'คุณ' : turnPlayer.name}` : ''}`,
     reveal: `เฉลย — หมวด ${s.category}`,
   }[s.state];
 
@@ -230,12 +325,17 @@ function render() {
   }
   $('waitHost').hidden = isHost || s.state === 'playing';
 
-  // แถบทายคำ
-  $('guessForm').hidden = targets.length === 0;
+  // แถบทายคำ: ตาเรา → ช่องทาย / ไม่ใช่ตาเรา → บอกว่ารอใคร
+  $('guessForm').hidden = s.state !== 'playing' || !me || !me.hasWord;
+  $('myTurn').hidden = !myTurn || targets.length === 0;
+  $('waitTurn').hidden = myTurn;
+  $('waitTurnText').textContent = turnPlayer ? `⏳ รอตาของ ${turnPlayer.name}…` : '';
+  $('skipBtn').hidden = !isHost || myTurn || !turnPlayer;
 
   // ฟีด
   $('feed').innerHTML = s.feed.slice().reverse().map((f) => {
     if (f.type === 'correct') return `<li class="ok">🎉 <b>${esc(f.name)}</b> ทายคำของ <b>${esc(f.target)}</b> ถูก! "${esc(f.text)}" (+${f.pts})</li>`;
+    if (f.type === 'pass') return `<li class="muted">⏭️ <b>${esc(f.name)}</b> ผ่านตา</li>`;
     if (f.type === 'survive') return `<li>🛡️ <b>${esc(f.name)}</b> รอด — คำคือ "${esc(f.text)}" (+${f.pts})</li>`;
     return `<li class="bad"><b>${esc(f.name)}</b> ทายคำของ ${esc(f.target)} ว่า "${esc(f.text)}" — ผิด</li>`;
   }).join('') || '<li class="muted">ยังไม่มีอะไรเกิดขึ้น</li>';

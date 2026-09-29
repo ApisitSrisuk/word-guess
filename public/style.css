@@ -201,3 +201,56 @@ button.small { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
   .side { display: contents; }
   .lb.spotlight { order: -1; }
 }
+
+/* แถบบน: ติดหัวจอ */
+.topbar { position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 8px 0; }
+.top-actions { display: flex; gap: 6px; }
+#chatBtn { position: relative; }
+.badge {
+  position: absolute; top: -6px; right: -6px;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 10px; background: var(--bad); color: #fff;
+  font-size: .75rem; line-height: 20px; text-align: center;
+}
+
+/* ลำดับตาเล่น */
+.turn-strip {
+  list-style: none; margin: 0 0 12px; padding: 0 0 4px;
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+}
+.turn-strip li {
+  flex: 0 0 auto; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); font-size: .85rem; white-space: nowrap;
+}
+.turn-strip li.now { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.turn-strip li.off { opacity: .45; }
+.wait-turn { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; font-weight: 600; }
+.guess-row button.secondary { padding: 10px 12px; }
+
+/* ลิ้นชักแชท */
+.sheet {
+  position: fixed; inset: 0; z-index: 20;
+  display: flex; flex-direction: column;
+  height: 100dvh;
+  background: var(--card);
+  padding: env(safe-area-inset-top, 0px) 0 var(--safe-b);
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.chat-list { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.chat-list li { max-width: 80%; align-self: flex-start; }
+.chat-list li.mine { align-self: flex-end; text-align: right; }
+.chat-list .who { font-size: .75rem; color: var(--muted); margin: 0 6px 2px; }
+.chat-list .bubble {
+  display: inline-block; padding: 8px 12px; border-radius: 16px;
+  background: var(--bg); border: 1px solid var(--line);
+  overflow-wrap: anywhere; text-align: left;
+}
+.chat-list li.mine .bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chat-list li.sys { align-self: center; max-width: 100%; font-size: .8rem; color: var(--muted); text-align: center; }
+.quick { display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px 0; scrollbar-width: none; }
+.chip { flex: 0 0 auto; min-height: 36px; padding: 4px 12px; border-radius: 999px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
+.chat-form { display: flex; gap: 8px; padding: 8px 16px 12px; }
+.chat-form input { margin: 0; flex: 1; min-width: 0; }
+@media (min-width: 760px) {
+  .sheet { left: auto; width: 380px; border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0, 0, 0, .15); }
+}
