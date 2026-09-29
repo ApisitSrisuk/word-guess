@@ -202,8 +202,41 @@ $('startBtn').addEventListener('click', () => {
     if (res.error) $('hostError').textContent = res.error;
   });
 });
+// ปุ่มที่ต้องยืนยัน: แตะครั้งแรกเปลี่ยนเป็น "แตะอีกครั้งเพื่อยืนยัน"
+// (ไม่ใช้ confirm() เพราะเบราว์เซอร์ในแอป เช่น LINE/Messenger มักบล็อกป๊อปอัป ทำให้กดแล้วไม่เกิดอะไร)
+function confirmTap(btn, askText, fn) {
+  if (btn.dataset.armed) {
+    clearTimeout(btn._disarm);
+    disarm(btn);
+    fn();
+    return;
+  }
+  btn.dataset.armed = '1';
+  btn.dataset.label = btn.textContent;
+  btn.textContent = askText;
+  btn.classList.add('armed');
+  btn._disarm = setTimeout(() => disarm(btn), 3000);
+}
+function disarm(btn) {
+  if (!btn.dataset.armed) return;
+  delete btn.dataset.armed;
+  btn.textContent = btn.dataset.label;
+  btn.classList.remove('armed');
+}
+
+// ส่งคำสั่งแล้วแสดงผล/ข้อผิดพลาดเสมอ + กันกดซ้ำระหว่างรอ
+async function act(btn, action, data, okMsg) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  const res = await api(action, data);
+  btn.disabled = false;
+  if (res.error) toast(`⚠️ ${res.error}`, 150);
+  else if (okMsg) toast(okMsg);
+  return res;
+}
+
 $('endBtn').addEventListener('click', () => {
-  if (confirm('จบรอบและเฉลยคำทั้งหมดเลยไหม?')) api('endRound');
+  confirmTap($('endBtn'), '⚠️ แตะอีกครั้งเพื่อจบรอบ', () => act($('endBtn'), 'endRound'));
 });
 
 $('guessForm').addEventListener('submit', (e) => {
@@ -221,10 +254,12 @@ $('guessForm').addEventListener('submit', (e) => {
   $('guessInput').value = '';
 });
 
-$('passBtn').addEventListener('click', () => api('pass'));
+// จบตา: เจ้าของตากดได้ทันที / คนอื่น (เช่น คนตอบ) แตะ 2 ครั้งกันกดพลาด
+$('passBtn').addEventListener('click', () => act($('passBtn'), 'pass', { turnId: state.currentTurn }, '✅ จบตาแล้ว'));
 $('skipBtn').addEventListener('click', () => {
   const cur = state.players.find((p) => p.id === state.currentTurn);
-  if (confirm(`ข้ามตาของ ${cur ? cur.name : 'คนนี้'}?`)) api('pass');
+  const turnId = state.currentTurn;
+  confirmTap($('skipBtn'), `แตะอีกครั้ง จบตา ${cur ? cur.name : ''}`, () => act($('skipBtn'), 'pass', { turnId }, '✅ จบตาแล้ว'));
 });
 
 // ---------- แชท ----------
@@ -396,7 +431,7 @@ function render() {
       if (p.guessedBy) status = `🎯 โดน ${esc(p.guessedBy)} ทาย`;
       else if (s.state === 'reveal' && p.hasWord) status = '🛡️ รอด (+3)';
       else if (canTarget) status = p.id === selected ? '✏️ กำลังทายคนนี้' : '👆 แตะเพื่อทาย';
-      if (!p.connected) status = '📴 หลุด';
+      if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
       const cls = ['player', !p.connected && 'off', canTarget && 'target', canTarget && p.id === selected && 'selected'].filter(Boolean).join(' ');
       return `<div class="${cls}" data-id="${esc(p.id)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
@@ -428,12 +463,17 @@ function render() {
   $('myTurn').hidden = !myTurn || targets.length === 0;
   $('waitTurn').hidden = myTurn;
   $('waitTurnText').textContent = turnPlayer ? `⏳ รอตาของ ${turnPlayer.name}…` : '';
-  $('skipBtn').hidden = !isHost || myTurn || !turnPlayer;
+  $('skipBtn').hidden = myTurn || !turnPlayer;
+  if (!$('skipBtn').dataset.armed) $('skipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
 
   // ฟีด
   $('feed').innerHTML = s.feed.slice().reverse().map((f) => {
     if (f.type === 'correct') return `<li class="ok">🎉 <b>${esc(f.name)}</b> ทายคำของ <b>${esc(f.target)}</b> ถูก! "${esc(f.text)}" (+${f.pts})</li>`;
-    if (f.type === 'pass') return `<li class="muted">⏭️ <b>${esc(f.name)}</b> ผ่านตา</li>`;
+    if (f.type === 'pass') {
+      if (f.auto) return `<li class="muted">💤 ข้ามตา <b>${esc(f.name)}</b> (ไม่ได้เปิดเกม)</li>`;
+      if (f.by) return `<li class="muted">✅ <b>${esc(f.by)}</b> จบตาของ ${esc(f.name)}</li>`;
+      return `<li class="muted">✅ <b>${esc(f.name)}</b> จบตา</li>`;
+    }
     if (f.type === 'survive') return `<li>🛡️ <b>${esc(f.name)}</b> รอด — คำคือ "${esc(f.text)}" (+${f.pts})</li>`;
     return `<li class="bad"><b>${esc(f.name)}</b> ทายคำของ ${esc(f.target)} ว่า "${esc(f.text)}" — ผิด</li>`;
   }).join('') || '<li class="muted">ยังไม่มีอะไรเกิดขึ้น</li>';

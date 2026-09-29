@@ -95,12 +95,14 @@ class Room {
     this.turn = (this.turn + 1) % n;
   }
 
-  // ผ่านตา: เจ้าของตาหรือหัวห้อง (กรณีเพื่อนไม่อยู่) กดข้ามได้
+  // จบตา: ใครในห้องก็กดได้ (คนถาม/คนตอบเสร็จแล้วกดจบตาเองได้เลย)
   pass(id) {
     if (this.state !== 'playing') return false;
+    const me = this.players.get(id);
+    if (!me) return false;
     const cur = this.players.get(this.currentTurnId());
-    if (id !== this.currentTurnId() && id !== this.hostId) return false;
-    this.feed.push({ type: 'pass', name: cur ? cur.name : '?' });
+    const by = me.id !== this.currentTurnId() ? me.name : undefined;
+    this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
     this.advanceTurn();
     return true;
   }

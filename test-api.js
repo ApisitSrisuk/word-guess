@@ -61,7 +61,7 @@ const get = (q) => handle('GET', q);
   assert.strictEqual(r.status, 429);
 
   // เจ้าของตาหายไป (ไม่ได้ดึงข้อมูลเกิน 20 วิ) → ข้ามตาให้อัตโนมัติ
-  clock += 25_000;
+  clock += 65_000;
   r = await get({ code: C, key: firstKey });
   assert.strictEqual(r.json.view.currentTurn, first, 'ตาถูกข้ามมาที่คนที่ยังอยู่');
   assert.ok(r.json.view.feed.some((f) => f.type === 'pass'));
