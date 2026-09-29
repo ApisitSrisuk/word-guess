@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "word-guess-game", "runtimeExecutable": "node", "runtimeArgs": ["dev-server.js"], "port": 3456 }
+    { "name": "word-guess-game", "runtimeExecutable": "node", "runtimeArgs": ["server.js"], "port": 3456 }
   ]
 }

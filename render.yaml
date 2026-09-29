@@ -1,0 +1,14 @@
+# Render Blueprint — deploy เกมทายคำที่สิงคโปร์ (ใกล้ไทย ตอบสนองไว)
+services:
+  - type: web
+    name: word-guess
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

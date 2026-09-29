@@ -1,5 +1,4 @@
-const API = '/api/room';
-const POLL_MS = 1500;
+const socket = io();
 const $ = (id) => document.getElementById(id);
 let state = null;
 let session = null;
@@ -53,103 +52,91 @@ function showRoom(on) {
   $('room').hidden = !on;
 }
 
-// ---------- คุยกับเซิร์ฟเวอร์ (HTTP + ดึงข้อมูลซ้ำทุก ~1.5 วิ แทน WebSocket ให้ใช้บน Vercel ได้) ----------
+// ---------- คุยกับเซิร์ฟเวอร์ (Socket.IO: ส่งข้อมูลสดทันที) ----------
 let lastChatId = 0;
 let lastSig = '';
+let replaced = false;
 
-async function api(action, data = {}) {
-  const code = data.code || (session && session.code);
-  try {
-    const r = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, code, key: deviceKey(), after: lastChatId, ...data }),
+// ส่งคำสั่ง แล้วรอคำตอบ (ถ้าเน็ตหลุดนานเกิน 8 วิ ถือว่าไม่สำเร็จ)
+function api(action, data = {}) {
+  return new Promise((resolve) => {
+    if (!socket.connected) {
+      setOffline(true);
+      return resolve({ error: 'ยังเชื่อมต่อไม่ได้ กำลังต่อใหม่…' });
+    }
+    socket.timeout(8000).emit('act', { action, ...data }, (err, res) => {
+      if (err) return resolve({ error: 'เซิร์ฟเวอร์ตอบช้า ลองใหม่อีกครั้ง' });
+      if (res.kicked) {
+        // เซิร์ฟเวอร์ไม่รู้จักเราแล้ว (เช่น เซิร์ฟเวอร์เพิ่งรีสตาร์ท) → เข้าห้องใหม่ด้วยชื่อเดิม
+        if (session) join(session.name, session.code);
+      }
+      resolve(res || {});
     });
-    const j = await r.json().catch(() => ({ error: 'เซิร์ฟเวอร์มีปัญหา ลองใหม่อีกครั้ง' }));
-    if (r.status === 404 && action !== 'join') kicked(j.error);
-    else if (j.view) applyPayload(j);
-    return j;
-  } catch {
-    setOffline(true);
-    return { error: 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ต' };
-  }
+  });
 }
 
-async function join(name, code) {
+let joining = null;
+function join(name, code) {
   $('loginError').textContent = '';
   code = code.trim().toUpperCase();
-  const res = await api('join', { name, code });
-  if (res.error) {
-    $('loginError').textContent = res.error;
-    showRoom(false);
-    return;
-  }
-  session = { name: name.trim(), code };
-  try {
-    localStorage.setItem('wg-session', JSON.stringify(session));
-    sessionStorage.setItem('wg-session', JSON.stringify(session));
-  } catch {}
-  history.replaceState(null, '', `?room=${encodeURIComponent(code)}`);
-  setOffline(false);
-  showRoom(true);
-  schedulePoll(POLL_MS);
-}
-
-// ไม่ได้อยู่ในห้องแล้ว (หายไปนานเกิน 10 นาที หรือห้องหมดอายุ) → กลับหน้าเข้าห้อง
-function kicked(msg) {
-  clearTimeout(pollTimer);
-  session = null;
-  state = null;
-  lastSig = '';
-  try { sessionStorage.removeItem('wg-session'); } catch {}
-  setOffline(false);
-  showRoom(false);
-  $('loginError').textContent = msg || 'หลุดออกจากห้องแล้ว กรุณาเข้าห้องใหม่';
+  name = name.trim();
+  replaced = false;
+  if (!socket.connected) socket.connect();
+  const p = new Promise((resolve) => {
+    socket.timeout(10000).emit('join', { name, code, key: deviceKey() }, (err, res) => {
+      if (err) res = { error: 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง' };
+      if (res.error) {
+        $('loginError').textContent = res.error;
+        // เด้งออกจากห้องเฉพาะกรณีที่เข้าไม่ได้จริง ๆ (ชื่อซ้ำ ฯลฯ) ไม่ใช่แค่เน็ตช้า
+        if (!err) {
+          session = null;
+          try { sessionStorage.removeItem('wg-session'); } catch {}
+          showRoom(false);
+        }
+        return resolve(res);
+      }
+      session = { name, code };
+      try {
+        localStorage.setItem('wg-session', JSON.stringify(session));
+        sessionStorage.setItem('wg-session', JSON.stringify(session));
+      } catch {}
+      history.replaceState(null, '', `?room=${encodeURIComponent(code)}`);
+      setOffline(false);
+      showRoom(true);
+      applyPayload(res);
+      resolve(res);
+    });
+  });
+  joining = p.finally(() => (joining = null));
+  return p;
 }
 
 function setOffline(on) {
   $('offline').hidden = !on;
 }
 
-let pollTimer;
-let polling = false;
-let fails = 0;
-function schedulePoll(ms) {
-  clearTimeout(pollTimer);
-  pollTimer = setTimeout(poll, ms);
-}
-async function poll() {
-  if (!session || polling) return;
-  polling = true;
-  try {
-    const q = new URLSearchParams({ code: session.code, key: deviceKey(), after: lastChatId });
-    const r = await fetch(`${API}?${q}`, { cache: 'no-store' });
-    const j = await r.json().catch(() => ({}));
-    if (r.status === 404) {
-      // ไม่อยู่ในห้องแล้ว → ลองกลับเข้าห้องด้วยชื่อเดิมอัตโนมัติ
-      polling = false;
-      const res = await api('join', { name: session.name, code: session.code });
-      if (res.error) kicked(res.error);
-      else schedulePoll(POLL_MS);
-      return;
-    }
-    if (!r.ok) throw new Error(j.error);
-    fails = 0;
-    setOffline(false);
-    applyPayload(j);
-  } catch {
-    fails += 1;
-    if (fails >= 2) setOffline(true);
-  } finally {
-    polling = false;
-  }
-  // แท็บ/แอปอยู่เบื้องหลัง → ดึงช้าลง (ประหยัดแบต แต่ยังนับว่าออนไลน์) แล้วดึงทันทีเมื่อกลับมา
-  const base = document.visibilityState === 'visible' ? POLL_MS : 8000;
-  if (session) schedulePoll(fails ? Math.min(base * 2 ** fails, 10000) : base);
-}
+// ต่อติด (ครั้งแรก/หลังหลุด) → กลับเข้าห้องเดิมอัตโนมัติ
+socket.on('connect', () => {
+  if (session && !replaced && !joining) join(session.name, session.code);
+});
+socket.on('disconnect', (reason) => {
+  if (session && !replaced) setOffline(true);
+  // เซิร์ฟเวอร์ตัดเอง socket.io จะไม่ต่อใหม่ให้ → สั่งต่อเอง
+  if (reason === 'io server disconnect' && !replaced) socket.connect();
+});
+// เปิดเกมชื่อเดียวกันจากแท็บ/เครื่องอื่น → แท็บนี้หยุด ไม่แย่งกลับ
+socket.on('replaced', () => {
+  replaced = true;
+  setOffline(false);
+  showRoom(false);
+  $('loginError').textContent = 'คุณเปิดเกมนี้ในแท็บหรือหน้าต่างอื่นแล้ว — กด "เข้าห้อง" เพื่อเล่นที่นี่แทน';
+});
+socket.on('sync', applyPayload);
 
+// กลับมาที่แอป/แท็บ (หลังล็อกจอ สลับแอป) → ต่อใหม่ทันที ไม่ต้องรอ
 function wake() {
-  if (document.visibilityState === 'visible' && session) poll();
+  if (document.visibilityState !== 'visible' || replaced || !session) return;
+  if (!socket.connected) socket.connect();
 }
 document.addEventListener('visibilitychange', wake);
 window.addEventListener('online', wake);
@@ -157,6 +144,7 @@ window.addEventListener('pageshow', wake);
 
 function applyPayload(j) {
   for (const m of j.chat || []) addChatMsg(m);
+  if (!j.view) return;
   const sig = JSON.stringify(j.view);
   if (sig === lastSig) return; // ไม่มีอะไรเปลี่ยน → ไม่วาดใหม่ (ไม่ไปปิด dropdown ที่กำลังเลือก)
   lastSig = sig;
@@ -479,8 +467,5 @@ function render() {
   }).join('') || '<li class="muted">ยังไม่มีอะไรเกิดขึ้น</li>';
 }
 
-// เปิดหน้ามาแล้วเคยอยู่ในห้อง → กลับเข้าห้องเลย
-if (session) {
-  showRoom(true);
-  join(session.name, session.code);
-}
+// เปิดหน้ามาแล้วเคยอยู่ในห้อง → โชว์ห้องไว้ก่อน แล้วเข้าห้องอัตโนมัติเมื่อต่อติด (socket 'connect')
+if (session) showRoom(true);
