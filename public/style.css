@@ -254,3 +254,10 @@ button.small { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
 @media (min-width: 760px) {
   .sheet { left: auto; width: 380px; border-left: 1px solid var(--line); box-shadow: -8px 0 24px rgba(0, 0, 0, .15); }
 }
+
+/* แถบแจ้งสัญญาณหลุด */
+.offline {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 30;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
+  background: var(--bad); color: #fff; text-align: center; font-weight: 600; font-size: .9rem;
+}

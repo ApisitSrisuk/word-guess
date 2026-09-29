@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 3456;
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
-const io = new Server(server);
+// มือถือพับจอ/สลับแอปบ่อย → เผื่อเวลา ping ให้นานขึ้นหน่อย
+const io = new Server(server, { pingInterval: 20000, pingTimeout: 25000 });
+
+// เก็บที่นั่งไว้ให้คนที่หลุด 10 นาที (ล็อกจอ/สลับแอปนาน ๆ ก็ยังกลับมาได้ คะแนนไม่หาย)
+const GRACE_MS = 10 * 60 * 1000;
 
 const rooms = new Map(); // code -> Room
 const leaveTimers = new Map(); // socketId -> timeout
@@ -23,8 +27,9 @@ function broadcast(room) {
 io.on('connection', (socket) => {
   let room = null;
 
-  socket.on('join', ({ name, code } = {}, ack = () => {}) => {
+  socket.on('join', ({ name, code, key } = {}, ack = () => {}) => {
     name = String(name || '').trim().slice(0, 20);
+    key = String(key || '').slice(0, 64);
     code = String(code || '').trim().toUpperCase().slice(0, 10);
     if (!name) return ack({ error: 'กรุณาใส่ชื่อ' });
     if (!code) return ack({ error: 'กรุณาใส่รหัสห้อง' });
@@ -36,14 +41,27 @@ io.on('connection', (socket) => {
     }
 
     const existing = room.findByName(name);
-    if (existing) {
-      if (existing.connected) return ack({ error: 'ชื่อนี้มีคนใช้ในห้องแล้ว' });
+    if (existing && existing.id === socket.id) {
+      // join ซ้ำจาก socket เดิม — ไม่ต้องทำอะไร
+    } else if (existing) {
+      const sameDevice = key && existing.key === key;
+      // ชื่อซ้ำจากอีกเครื่องที่ยังออนไลน์อยู่จริง → ไม่ให้แย่ง
+      if (existing.connected && !sameDevice) return ack({ error: 'ชื่อนี้มีคนใช้ในห้องแล้ว' });
+      // เครื่องเดิมกลับมา (หรือที่นั่งว่างอยู่) → คืนที่นั่งเดิมทันที แม้เซิร์ฟเวอร์ยังไม่รู้ว่า socket เก่าหลุด
       clearTimeout(leaveTimers.get(existing.id));
       leaveTimers.delete(existing.id);
+      const oldSocket = io.sockets.sockets.get(existing.id);
+      if (oldSocket) {
+        oldSocket.emit('replaced');
+        oldSocket.data.replaced = true;
+        oldSocket.disconnect(true);
+      }
       room.rebind(existing.id, socket.id);
+      if (key) existing.key = key;
     } else {
       try {
-        room.addPlayer(socket.id, name);
+        const p = room.addPlayer(socket.id, name);
+        p.key = key;
       } catch (e) {
         return ack({ error: e.message });
       }
@@ -100,14 +118,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    if (!room) return;
+    if (!room || socket.data.replaced) return;
     const p = room.players.get(socket.id);
     if (!p) return;
     p.connected = false;
     // หลุดตอนถึงตาตัวเอง → ส่งตาให้คนถัดไป
     if (room.state === 'playing' && room.currentTurnId() === socket.id) room.advanceTurn();
     broadcast(room);
-    // เผื่อเวลา 60 วินาทีให้กลับเข้าห้องด้วยชื่อเดิม
+    // เก็บที่นั่งไว้ให้กลับเข้าห้องด้วยชื่อเดิม
     const r = room;
     leaveTimers.set(socket.id, setTimeout(() => {
       leaveTimers.delete(socket.id);
@@ -115,7 +133,7 @@ io.on('connection', (socket) => {
       if (r.players.size === 0) return rooms.delete(r.code);
       io.to(r.code).emit('chat', r.systemChat(`🚪 ${p.name} ออกจากห้อง`));
       broadcast(r);
-    }, 60_000));
+    }, GRACE_MS));
   });
 });
 

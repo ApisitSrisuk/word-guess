@@ -17,30 +17,54 @@ function toast(msg, buzz) {
   if (buzz && navigator.vibrate) navigator.vibrate(buzz);
 }
 
+// รหัสประจำเครื่อง — ใช้ยืนยันว่าเป็นคนเดิมตอนต่อใหม่ (ไม่แสดงให้ใครเห็น)
+function deviceKey() {
+  try {
+    let k = localStorage.getItem('wg-key');
+    if (!k) {
+      k = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+      localStorage.setItem('wg-key', k);
+    }
+    return k;
+  } catch {
+    return (window.__wgKey ||= Math.random().toString(36).slice(2));
+  }
+}
+
 // ลิงก์ชวนเพื่อน ?room=CODE → กรอกรหัสห้องให้เลย
-const roomParam = new URLSearchParams(location.search).get('room');
+const roomParam = (new URLSearchParams(location.search).get('room') || '').toUpperCase();
 try {
   const saved = JSON.parse(localStorage.getItem('wg-session') || 'null');
   if (saved) { $('nameInput').value = saved.name; $('codeInput').value = saved.code; }
-  // รีเฟรชหน้า → กลับเข้าห้องเดิมอัตโนมัติ (จำเฉพาะแท็บนี้)
+  // รีเฟรช/เปิดลิงก์ห้องเดิมอีกครั้ง → กลับเข้าห้องอัตโนมัติ
   session = JSON.parse(sessionStorage.getItem('wg-session') || 'null');
+  if (!session && saved && roomParam && saved.code === roomParam) session = saved;
 } catch {}
-if (roomParam) $('codeInput').value = roomParam.toUpperCase();
+if (roomParam) $('codeInput').value = roomParam;
 
 $('loginForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  join($('nameInput').value, $('codeInput').value);
+  join($('nameInput').value, $('codeInput').value, { manual: true });
 });
 
-function join(name, code, retries = 0) {
+function showRoom(on) {
+  $('login').hidden = on;
+  $('room').hidden = !on;
+}
+
+let retryTimer;
+function join(name, code, { manual = false, attempt = 0 } = {}) {
+  clearTimeout(retryTimer);
   $('loginError').textContent = '';
-  socket.emit('join', { name, code }, (res) => {
-    // ตอนรีเฟรช เซิร์ฟเวอร์อาจยังไม่รู้ว่าแท็บเก่าหลุด → ลองใหม่อีกครั้ง
-    if (res.error && retries > 0) return setTimeout(() => join(name, code, retries - 1), 1500);
+  socket.emit('join', { name, code, key: deviceKey() }, (res) => {
     if (res.error) {
+      // กลับเข้าห้องอัตโนมัติไม่สำเร็จ → ลองต่อเรื่อย ๆ แบบเว้นระยะ (ไม่เด้งออกจากห้อง)
+      if (!manual && attempt < 8 && socket.connected) {
+        retryTimer = setTimeout(() => join(name, code, { attempt: attempt + 1 }), Math.min(1000 * 2 ** attempt, 8000));
+        return;
+      }
       $('loginError').textContent = res.error;
-      session = null;
-      try { sessionStorage.removeItem('wg-session'); } catch {}
+      if (!manual) showRoom(false);
       return;
     }
     session = { name: name.trim(), code: code.trim().toUpperCase() };
@@ -49,14 +73,49 @@ function join(name, code, retries = 0) {
       sessionStorage.setItem('wg-session', JSON.stringify(session));
     } catch {}
     history.replaceState(null, '', `?room=${encodeURIComponent(session.code)}`);
-    $('login').hidden = true;
-    $('room').hidden = false;
+    setOffline(false);
+    showRoom(true);
   });
 }
 
-// หลุดแล้วต่อใหม่ → กลับเข้าห้องเดิมอัตโนมัติ
-socket.on('connect', () => { if (session) join(session.name, session.code, 2); });
-socket.on('disconnect', () => { if (session) toast('📴 การเชื่อมต่อหลุด กำลังต่อใหม่…'); });
+// ---------- การเชื่อมต่อ ----------
+function setOffline(on) {
+  $('offline').hidden = !on;
+}
+let replaced = false;
+
+// ต่อใหม่ได้ → กลับเข้าห้องเดิมอัตโนมัติ
+socket.on('connect', () => {
+  if (session && !replaced) {
+    if (!$('room').hidden || state) showRoom(true);
+    join(session.name, session.code);
+  }
+});
+socket.on('disconnect', (reason) => {
+  if (session && !replaced) setOffline(true);
+  // เซิร์ฟเวอร์ตัดเอง socket.io จะไม่ต่อใหม่ให้ → สั่งต่อเอง
+  if (reason === 'io server disconnect' && !replaced) socket.connect();
+});
+// เปิดเกมชื่อเดียวกันจากแท็บ/เครื่องอื่น → แท็บนี้หยุด ไม่แย่งกลับ
+socket.on('replaced', () => {
+  replaced = true;
+  setOffline(false);
+  showRoom(false);
+  $('loginError').textContent = 'คุณเปิดเกมนี้ในแท็บหรือหน้าต่างอื่นแล้ว — กด "เข้าห้อง" เพื่อเล่นที่นี่แทน';
+});
+$('loginForm').addEventListener('submit', () => {
+  replaced = false;
+  if (!socket.connected) socket.connect();
+});
+
+// กลับมาที่แอป/แท็บ (หลังล็อกจอ สลับแอป) → เช็กและต่อใหม่ทันที ไม่ต้องรอ
+function wake() {
+  if (document.visibilityState !== 'visible' || replaced || !session) return;
+  if (!socket.connected) socket.connect();
+}
+document.addEventListener('visibilitychange', wake);
+window.addEventListener('online', wake);
+window.addEventListener('pageshow', wake);
 
 socket.on('state', (s) => {
   const prev = state;
