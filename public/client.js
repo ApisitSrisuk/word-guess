@@ -1,4 +1,5 @@
-const socket = io();
+const API = '/api/room';
+const POLL_MS = 1500;
 const $ = (id) => document.getElementById(id);
 let state = null;
 let session = null;
@@ -44,7 +45,7 @@ if (roomParam) $('codeInput').value = roomParam;
 
 $('loginForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  join($('nameInput').value, $('codeInput').value, { manual: true });
+  join($('nameInput').value, $('codeInput').value);
 });
 
 function showRoom(on) {
@@ -52,77 +53,118 @@ function showRoom(on) {
   $('room').hidden = !on;
 }
 
-let retryTimer;
-function join(name, code, { manual = false, attempt = 0 } = {}) {
-  clearTimeout(retryTimer);
-  $('loginError').textContent = '';
-  socket.emit('join', { name, code, key: deviceKey() }, (res) => {
-    if (res.error) {
-      // กลับเข้าห้องอัตโนมัติไม่สำเร็จ → ลองต่อเรื่อย ๆ แบบเว้นระยะ (ไม่เด้งออกจากห้อง)
-      if (!manual && attempt < 8 && socket.connected) {
-        retryTimer = setTimeout(() => join(name, code, { attempt: attempt + 1 }), Math.min(1000 * 2 ** attempt, 8000));
-        return;
-      }
-      $('loginError').textContent = res.error;
-      if (!manual) showRoom(false);
-      return;
-    }
-    session = { name: name.trim(), code: code.trim().toUpperCase() };
-    try {
-      localStorage.setItem('wg-session', JSON.stringify(session));
-      sessionStorage.setItem('wg-session', JSON.stringify(session));
-    } catch {}
-    history.replaceState(null, '', `?room=${encodeURIComponent(session.code)}`);
-    setOffline(false);
-    showRoom(true);
-  });
+// ---------- คุยกับเซิร์ฟเวอร์ (HTTP + ดึงข้อมูลซ้ำทุก ~1.5 วิ แทน WebSocket ให้ใช้บน Vercel ได้) ----------
+let lastChatId = 0;
+let lastSig = '';
+
+async function api(action, data = {}) {
+  const code = data.code || (session && session.code);
+  try {
+    const r = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, code, key: deviceKey(), after: lastChatId, ...data }),
+    });
+    const j = await r.json().catch(() => ({ error: 'เซิร์ฟเวอร์มีปัญหา ลองใหม่อีกครั้ง' }));
+    if (r.status === 404 && action !== 'join') kicked(j.error);
+    else if (j.view) applyPayload(j);
+    return j;
+  } catch {
+    setOffline(true);
+    return { error: 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ต' };
+  }
 }
 
-// ---------- การเชื่อมต่อ ----------
+async function join(name, code) {
+  $('loginError').textContent = '';
+  code = code.trim().toUpperCase();
+  const res = await api('join', { name, code });
+  if (res.error) {
+    $('loginError').textContent = res.error;
+    showRoom(false);
+    return;
+  }
+  session = { name: name.trim(), code };
+  try {
+    localStorage.setItem('wg-session', JSON.stringify(session));
+    sessionStorage.setItem('wg-session', JSON.stringify(session));
+  } catch {}
+  history.replaceState(null, '', `?room=${encodeURIComponent(code)}`);
+  setOffline(false);
+  showRoom(true);
+  schedulePoll(POLL_MS);
+}
+
+// ไม่ได้อยู่ในห้องแล้ว (หายไปนานเกิน 10 นาที หรือห้องหมดอายุ) → กลับหน้าเข้าห้อง
+function kicked(msg) {
+  clearTimeout(pollTimer);
+  session = null;
+  state = null;
+  lastSig = '';
+  try { sessionStorage.removeItem('wg-session'); } catch {}
+  setOffline(false);
+  showRoom(false);
+  $('loginError').textContent = msg || 'หลุดออกจากห้องแล้ว กรุณาเข้าห้องใหม่';
+}
+
 function setOffline(on) {
   $('offline').hidden = !on;
 }
-let replaced = false;
 
-// ต่อใหม่ได้ → กลับเข้าห้องเดิมอัตโนมัติ
-socket.on('connect', () => {
-  if (session && !replaced) {
-    if (!$('room').hidden || state) showRoom(true);
-    join(session.name, session.code);
+let pollTimer;
+let polling = false;
+let fails = 0;
+function schedulePoll(ms) {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(poll, ms);
+}
+async function poll() {
+  if (!session || polling) return;
+  polling = true;
+  try {
+    const q = new URLSearchParams({ code: session.code, key: deviceKey(), after: lastChatId });
+    const r = await fetch(`${API}?${q}`, { cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 404) {
+      // ไม่อยู่ในห้องแล้ว → ลองกลับเข้าห้องด้วยชื่อเดิมอัตโนมัติ
+      polling = false;
+      const res = await api('join', { name: session.name, code: session.code });
+      if (res.error) kicked(res.error);
+      else schedulePoll(POLL_MS);
+      return;
+    }
+    if (!r.ok) throw new Error(j.error);
+    fails = 0;
+    setOffline(false);
+    applyPayload(j);
+  } catch {
+    fails += 1;
+    if (fails >= 2) setOffline(true);
+  } finally {
+    polling = false;
   }
-});
-socket.on('disconnect', (reason) => {
-  if (session && !replaced) setOffline(true);
-  // เซิร์ฟเวอร์ตัดเอง socket.io จะไม่ต่อใหม่ให้ → สั่งต่อเอง
-  if (reason === 'io server disconnect' && !replaced) socket.connect();
-});
-// เปิดเกมชื่อเดียวกันจากแท็บ/เครื่องอื่น → แท็บนี้หยุด ไม่แย่งกลับ
-socket.on('replaced', () => {
-  replaced = true;
-  setOffline(false);
-  showRoom(false);
-  $('loginError').textContent = 'คุณเปิดเกมนี้ในแท็บหรือหน้าต่างอื่นแล้ว — กด "เข้าห้อง" เพื่อเล่นที่นี่แทน';
-});
-$('loginForm').addEventListener('submit', () => {
-  replaced = false;
-  if (!socket.connected) socket.connect();
-});
+  // แท็บ/แอปอยู่เบื้องหลัง → ดึงช้าลง (ประหยัดแบต แต่ยังนับว่าออนไลน์) แล้วดึงทันทีเมื่อกลับมา
+  const base = document.visibilityState === 'visible' ? POLL_MS : 8000;
+  if (session) schedulePoll(fails ? Math.min(base * 2 ** fails, 10000) : base);
+}
 
-// กลับมาที่แอป/แท็บ (หลังล็อกจอ สลับแอป) → เช็กและต่อใหม่ทันที ไม่ต้องรอ
 function wake() {
-  if (document.visibilityState !== 'visible' || replaced || !session) return;
-  if (!socket.connected) socket.connect();
+  if (document.visibilityState === 'visible' && session) poll();
 }
 document.addEventListener('visibilitychange', wake);
 window.addEventListener('online', wake);
 window.addEventListener('pageshow', wake);
 
-socket.on('state', (s) => {
+function applyPayload(j) {
+  for (const m of j.chat || []) addChatMsg(m);
+  const sig = JSON.stringify(j.view);
+  if (sig === lastSig) return; // ไม่มีอะไรเปลี่ยน → ไม่วาดใหม่ (ไม่ไปปิด dropdown ที่กำลังเลือก)
+  lastSig = sig;
   const prev = state;
-  state = s;
-  notify(prev, s);
+  state = j.view;
+  notify(prev, state);
   render();
-});
+}
 
 // แจ้งเตือนสิ่งสำคัญที่เกิดกับฉัน
 function notify(prev, s) {
@@ -156,12 +198,12 @@ $('shareBtn').addEventListener('click', async () => {
 
 $('startBtn').addEventListener('click', () => {
   $('hostError').textContent = '';
-  socket.emit('start', $('categorySelect').value, (res) => {
+  api('start', { category: $('categorySelect').value }).then((res) => {
     if (res.error) $('hostError').textContent = res.error;
   });
 });
 $('endBtn').addEventListener('click', () => {
-  if (confirm('จบรอบและเฉลยคำทั้งหมดเลยไหม?')) socket.emit('endRound');
+  if (confirm('จบรอบและเฉลยคำทั้งหมดเลยไหม?')) api('endRound');
 });
 
 $('guessForm').addEventListener('submit', (e) => {
@@ -170,17 +212,19 @@ $('guessForm').addEventListener('submit', (e) => {
   const text = $('guessInput').value.trim();
   if (!text || !targetId) return;
   const targetName = $('targetSelect').selectedOptions[0].textContent;
-  socket.emit('guess', { targetId, text }, (res) => {
+  api('guess', { targetId, text }).then((res) => {
+    if (res.error) return toast(res.error, 150);
+    if (res.correct == null) return toast('ยังไม่ถึงตาคุณ หรือคนนี้โดนทายไปแล้ว');
     if (res.correct) toast(`🎉 ถูกต้อง! คำของ ${targetName} คือ "${text}" (+2)`, [60, 40, 60, 40, 120]);
     else toast(`❌ "${text}" ไม่ใช่คำของ ${targetName}`, 80);
   });
   $('guessInput').value = '';
 });
 
-$('passBtn').addEventListener('click', () => socket.emit('pass'));
+$('passBtn').addEventListener('click', () => api('pass'));
 $('skipBtn').addEventListener('click', () => {
   const cur = state.players.find((p) => p.id === state.currentTurn);
-  if (confirm(`ข้ามตาของ ${cur ? cur.name : 'คนนี้'}?`)) socket.emit('pass');
+  if (confirm(`ข้ามตาของ ${cur ? cur.name : 'คนนี้'}?`)) api('pass');
 });
 
 // ---------- แชท ----------
@@ -207,25 +251,20 @@ function setUnread(n) {
   $('chatBadge').textContent = n > 9 ? '9+' : n;
 }
 
-socket.on('chatHistory', (list) => {
-  chatMsgs.length = 0;
-  chatMsgs.push(...list);
-  $('chatList').replaceChildren(...list.map(renderChatMsg));
-  scrollChat();
-});
-socket.on('chat', (m) => {
-  if (chatMsgs.some((x) => x.id === m.id)) return;
+function addChatMsg(m) {
+  if (m.id <= lastChatId || chatMsgs.some((x) => x.id === m.id)) return;
+  lastChatId = m.id;
   chatMsgs.push(m);
   if (chatMsgs.length > 100) { chatMsgs.shift(); $('chatList').firstChild?.remove(); }
   const nearBottom = $('chatList').scrollHeight - $('chatList').scrollTop - $('chatList').clientHeight < 80;
   $('chatList').append(renderChatMsg(m));
-  if (nearBottom) scrollChat();
+  if (nearBottom || !chatOpen) scrollChat();
   const fromMe = session && m.name === session.name;
   if (!chatOpen && !m.system && !fromMe) {
     setUnread(unread + 1);
     if (navigator.vibrate) navigator.vibrate(30);
   }
-});
+}
 
 function openChat() {
   chatOpen = true;
@@ -245,7 +284,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && chatOpen
 function sendChat(text) {
   text = text.trim();
   if (!text) return;
-  socket.emit('chat', text, (res) => {
+  api('chat', { text }).then((res) => {
     if (res.error) toast(res.error, 150);
   });
 }
@@ -398,4 +437,10 @@ function render() {
     if (f.type === 'survive') return `<li>🛡️ <b>${esc(f.name)}</b> รอด — คำคือ "${esc(f.text)}" (+${f.pts})</li>`;
     return `<li class="bad"><b>${esc(f.name)}</b> ทายคำของ ${esc(f.target)} ว่า "${esc(f.text)}" — ผิด</li>`;
   }).join('') || '<li class="muted">ยังไม่มีอะไรเกิดขึ้น</li>';
+}
+
+// เปิดหน้ามาแล้วเคยอยู่ในห้อง → กลับเข้าห้องเลย
+if (session) {
+  showRoom(true);
+  join(session.name, session.code);
 }

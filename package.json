@@ -1,14 +1,20 @@
 {
   "name": "word-guess-game",
-  "version": "1.0.0",
-  "description": "เกมทายคำกับเพื่อน — ทุกคนได้คำไม่ซ้ำกัน เห็นคำของเพื่อน แต่ต้องทายคำของตัวเอง",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "เกมทายคำกับเพื่อน — ทุกคนได้คำลับไม่ซ้ำกัน แล้วแข่งกันทายคำของเพื่อน",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "test": "node test.js"
+    "dev": "node dev-server.js",
+    "start": "node dev-server.js",
+    "test": "node test.js && node test-api.js"
   },
   "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1"
+    "@upstash/redis": "^1.35.0"
+  },
+  "devDependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

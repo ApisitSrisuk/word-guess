@@ -35,6 +35,43 @@ class Room {
     this.usedWords = new Set();
     this.turnOrder = []; // ลำดับตาเล่น (สุ่มใหม่ทุกรอบ)
     this.turn = 0;
+    this.version = 0;
+  }
+
+  // ---------- เก็บลง/โหลดจากฐานข้อมูล (Redis) ----------
+  toJSON() {
+    return {
+      code: this.code, hostId: this.hostId, state: this.state, category: this.category,
+      round: this.round, feed: this.feed, chat: this.chat, chatSeq: this.chatSeq,
+      usedWords: [...this.usedWords], turnOrder: this.turnOrder, turn: this.turn, version: this.version,
+      players: [...this.players.values()],
+    };
+  }
+
+  static fromJSON(data) {
+    const r = new Room(data.code);
+    const { players, usedWords, ...rest } = data;
+    Object.assign(r, rest);
+    r.players = new Map(players.map((p) => [p.id, p]));
+    r.usedWords = new Set(usedWords);
+    return r;
+  }
+
+  findByKey(key) {
+    for (const p of this.players.values()) if (key && p.key === key) return p;
+    return null;
+  }
+
+  // เจ้าของตาไม่อยู่ (ล็อกจอ/ปิดแอป) → ข้ามให้อัตโนมัติ ถ้ามีคนอื่นที่ออนไลน์และทายได้
+  autoSkipIfAway() {
+    if (this.state !== 'playing') return false;
+    const cur = this.players.get(this.currentTurnId());
+    if (!cur || cur.connected) return false;
+    const someoneCan = [...this.players.values()].some((p) => p.connected && this.hasTarget(p.id));
+    if (!someoneCan) return false;
+    this.feed.push({ type: 'pass', name: cur.name, auto: true });
+    this.advanceTurn();
+    return true;
   }
 
   currentTurnId() {
@@ -111,18 +148,6 @@ class Room {
     const n = normalize(name);
     for (const p of this.players.values()) if (normalize(p.name) === n) return p;
     return null;
-  }
-
-  // ให้ผู้เล่นที่หลุดกลับเข้ามาใช้ id ใหม่ แต่คงคะแนน/คำเดิม
-  rebind(oldId, newId) {
-    const p = this.players.get(oldId);
-    this.players.delete(oldId);
-    p.id = newId;
-    p.connected = true;
-    this.players.set(newId, p);
-    if (this.hostId === oldId) this.hostId = newId;
-    this.turnOrder = this.turnOrder.map((t) => (t === oldId ? newId : t));
-    return p;
   }
 
   removePlayer(id) {
