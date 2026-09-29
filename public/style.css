@@ -265,3 +265,5 @@ button.small { min-height: 38px; padding: 6px 12px; font-size: .9rem; }
 /* ปุ่มที่รอแตะยืนยันอีกครั้ง */
 button.armed { background: var(--bad); color: #fff; border-color: var(--bad); animation: pulse .8s ease-in-out infinite alternate; }
 @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+
+.top-actions button { white-space: nowrap; }

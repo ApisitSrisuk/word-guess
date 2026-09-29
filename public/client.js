@@ -319,6 +319,38 @@ $('chatForm').addEventListener('submit', (e) => {
 });
 document.querySelectorAll('.chip').forEach((b) => b.addEventListener('click', () => sendChat(b.dataset.q)));
 
+// ออกจากห้อง: แตะ 2 ครั้ง → เอาออกจากห้องทันที แล้วกลับหน้าเข้าห้อง (จำชื่อไว้ แต่ไม่เข้าห้องเดิมอัตโนมัติ)
+$('leaveBtn').addEventListener('click', () => {
+  confirmTap($('leaveBtn'), 'ออก?', leaveRoom);
+});
+function leaveRoom() {
+  const done = () => {
+    try {
+      sessionStorage.removeItem('wg-session');
+      localStorage.setItem('wg-session', JSON.stringify({ name: session ? session.name : $('nameInput').value, code: '' }));
+    } catch {}
+    session = null;
+    state = null;
+    lastSig = '';
+    lastChatId = 0;
+    lastFeedLen = 0;
+    lastRound = 0;
+    peek = false;
+    chatMsgs.length = 0;
+    $('chatList').replaceChildren();
+    setUnread(0);
+    closeChat();
+    history.replaceState(null, '', location.pathname);
+    $('codeInput').value = '';
+    $('loginError').textContent = '';
+    setOffline(false);
+    showRoom(false);
+    toast('👋 ออกจากห้องแล้ว');
+  };
+  if (!socket.connected) return done();
+  socket.timeout(3000).emit('leave', done);
+}
+
 // แตะการ์ดเพื่อนเพื่อเลือกคนที่จะทาย
 $('players').addEventListener('click', (e) => {
   const card = e.target.closest('.player.target');

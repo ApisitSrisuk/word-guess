@@ -86,6 +86,32 @@ const act = (s, action, data = {}) => emit(s, 'act', { action, ...data });
   await sleep(700);
   assert.strictEqual(stayer.last.players.length, 1);
 
+  // ออกจากห้องเอง → เอาออกทันที หัวห้องย้ายไปคนถัดไป ห้องว่างแล้วหายไป
+  const { rooms } = require('./server');
+  const c = await client();
+  const d = await client();
+  await emit(c, 'join', { name: 'ซี', code: 'LV', key: 'kC' });
+  r = await emit(d, 'join', { name: 'ดี', code: 'LV', key: 'kD' });
+  const idD = r.view.me;
+  let leftMsg = null;
+  d.on('sync', (j) => { if (j.chat && /ออกจากห้อง/.test(j.chat[0].text)) leftMsg = j.chat[0].text; });
+  r = await new Promise((res) => c.emit('leave', res));
+  assert.ok(r.ok);
+  await sleep(50);
+  assert.strictEqual(d.last.players.length, 1, 'ออกแล้วหายจากห้องทันที');
+  assert.strictEqual(d.last.hostId, idD, 'หัวห้องย้ายให้คนที่เหลือ');
+  assert.match(leftMsg, /ซี/);
+  r = await act(c, 'chat', { text: 'ยังอยู่ไหม' });
+  assert.ok(r.kicked, 'ออกแล้วสั่งอะไรในห้องไม่ได้');
+  // ใช้ชื่อเดิมกลับเข้าห้องได้ (ได้ที่นั่งใหม่)
+  r = await emit(c, 'join', { name: 'ซี', code: 'LV', key: 'kC' });
+  assert.ok(r.ok);
+  await new Promise((res) => c.emit('leave', res));
+  await new Promise((res) => d.emit('leave', res));
+  assert.ok(!rooms.has('LV'), 'ห้องว่างถูกลบ');
+  c.close();
+  d.close();
+
   stayer.close();
   io.close();
   console.log('เซิร์ฟเวอร์ผ่านทุกเทสต์ ✅');

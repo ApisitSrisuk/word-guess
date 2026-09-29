@@ -170,6 +170,25 @@ io.on('connection', (socket) => {
     scheduleAwaySkip(r);
   });
 
+  // ออกจากห้องเอง → เอาออกทันที (ไม่ต้องรอ 10 นาที)
+  socket.on('leave', (ack = () => {}) => {
+    if (!room || !me) return ack({ ok: true });
+    const r = room;
+    const p = me;
+    room = null;
+    me = null;
+    socket.leave(r.code);
+    if (!r.players.has(p.id)) return ack({ ok: true });
+    clearTimers(p.id);
+    if (socketsOf.get(p.id) === socket) socketsOf.delete(p.id);
+    r.removePlayer(p.id);
+    ack({ ok: true });
+    if (r.players.size === 0) return rooms.delete(r.code);
+    sendChat(r, r.systemChat(`🚪 ${p.name} ออกจากห้อง`));
+    broadcast(r);
+    scheduleAwaySkip(r);
+  });
+
   socket.on('disconnect', () => {
     if (!room || !me || socket.data.replaced) return;
     if (socketsOf.get(me.id) !== socket) return;
