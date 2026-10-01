@@ -25,8 +25,47 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
+const MODES = ['guess', 'undercover', 'center'];
+
+// จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
+function syncTimer(room) {
+  const key = room.timerKey();
+  if (key === room._timerKey) return;
+  clearTimeout(room._timer);
+  room._timerKey = key;
+  room.turnEndsAt = key ? Date.now() + room.turnLimit * 1000 : null;
+  if (!key) return;
+  room._timer = setTimeout(() => {
+    if (room.timerKey() !== key) return;
+    if (room.timeoutTurn()) broadcast(room);
+  }, room.turnLimit * 1000);
+}
+
+// เปลี่ยนตา → ล้างแชทของทุกคน แล้วบอกว่าตาใคร
+function syncTurn(room) {
+  const key = room.chatKey();
+  if (key === room._turnKey) return;
+  room._turnKey = key;
+  if (!key) return;
+  room.clearChat();
+  io.to(room.code).emit('sync', { clearChat: true });
+  let label;
+  if (room.mode === 'center') {
+    const cur = room.players.get(room.ctAsker());
+    label = `❓ ตาของ ${cur ? cur.name : '?'} — ถามใช่/ไม่ใช่ หรือทายเลย`;
+  } else if (room.mode === 'undercover' && room.uc.phase === 'vote') label = '🗳️ ถึงเวลาโหวต! คุยกันได้เลยว่าใครน่าสงสัย';
+  else if (room.mode === 'undercover' && room.uc.phase === 'white') label = '🤍 Mr. White กำลังทายคำของชาวบ้าน…';
+  else {
+    const cur = room.players.get(room.currentTurnId());
+    const asker = room.mode === 'guess' ? room.players.get(room.gAsker()) : cur;
+    label = room.mode === 'undercover' ? `🕵️ ตาของ ${cur ? cur.name : '?'} ใบ้คำ` : `🎯 ตาของ ${asker ? asker.name : '?'} — ถามเพื่อน หรือทายเลย`;
+  }
+  sendChat(room, room.systemChat(label));
+}
 
 function broadcast(room) {
+  syncTurn(room);
+  syncTimer(room);
   for (const p of room.players.values()) {
     const s = socketsOf.get(p.id);
     if (s && p.connected) s.emit('sync', { view: room.viewFor(p.id) });
@@ -134,8 +173,48 @@ io.on('connection', (socket) => {
       switch (action) {
         case 'start':
           if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
-          r.start(data.category);
-          sendChat(r, r.systemChat(`🎲 รอบ ${r.round} เริ่มแล้ว — หมวด ${r.category}`));
+          if (data.turnLimit != null) r.setTurnLimit(data.turnLimit);
+          if (MODES.includes(data.mode)) r.nextMode = data.mode;
+          if (r.nextMode === 'undercover') {
+            r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'center') {
+            r.startCenter(data.category);
+          } else {
+            r.start(data.category);
+          }
+          break;
+        case 'settings':
+          if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
+          if (MODES.includes(data.mode)) r.nextMode = data.mode;
+          if (data.turnLimit != null) {
+            r.setTurnLimit(data.turnLimit);
+            r._timerKey = undefined; // ใช้เวลาใหม่กับตาปัจจุบันด้วย
+          }
+          break;
+        case 'clue':
+          r.ucClue(me.id, data.text);
+          break;
+        case 'vote':
+          r.ucVote(me.id, String(data.targetId || ''));
+          break;
+        case 'closeVote':
+          if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
+          if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
+          r.ucResolveVotes();
+          break;
+        case 'ask':
+          if (r.mode === 'guess') r.guessAsk(me.id, String(data.targetId || ''), data.text);
+          else r.ctAsk(me.id, data.text);
+          break;
+        case 'answer':
+          if (r.mode === 'guess') r.guessAnswer(me.id, data.answer);
+          else r.ctAnswer(me.id, data.answer);
+          break;
+        case 'ctGuess':
+          out.correct = r.ctGuess(me.id, data.text);
+          break;
+        case 'whiteGuess':
+          out.correct = r.ucWhiteGuess(me.id, data.text);
           break;
         case 'endRound':
           if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
@@ -196,6 +275,7 @@ io.on('connection', (socket) => {
     const p = me;
     p.connected = false;
     socketsOf.delete(p.id);
+    r.onPresenceChange();
     broadcast(r);
     scheduleAwaySkip(r);
     const t = timers.get(p.id) || {};

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#e8590c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <title>ทายคำกับเพื่อน</title>
+  <title>เกมปาร์ตี้กับเพื่อน</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
@@ -16,8 +16,8 @@
   <main>
     <!-- หน้าเข้าสู่ระบบ -->
     <section id="login" class="card">
-      <h1>🎯 ทายคำกับเพื่อน</h1>
-      <p class="muted">ทุกคนได้คำลับไม่ซ้ำกัน — เก็บคำตัวเองไว้ แล้วทายคำของเพื่อนให้ได้!</p>
+      <h1>🎉 เกมปาร์ตี้กับเพื่อน</h1>
+      <p class="muted">🎯 ทายคำ · 🕵️ ใครคือสปาย · ❓ ทายคำตรงกลาง — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       <form id="loginForm">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" required /></label>
         <label>รหัสห้อง<input id="codeInput" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="เช่น PARTY1" required /></label>
@@ -38,6 +38,11 @@
       </header>
 
       <div id="banner" class="banner"></div>
+      <div id="subBanner" class="sub-banner" hidden></div>
+      <div id="timer" class="timer" hidden aria-live="off">
+        <span id="timerText"></span>
+        <div class="timer-track"><i id="timerFill"></i></div>
+      </div>
       <ol id="turnStrip" class="turn-strip" hidden aria-label="ลำดับตาเล่น"></ol>
 
       <div class="layout">
@@ -46,8 +51,30 @@
           <div id="players" class="players"></div>
 
           <div id="hostControls" class="card" hidden>
-            <label>หมวด
-              <select id="categorySelect"></select>
+            <div id="setupBox">
+              <div class="seg" id="modeSeg" role="radiogroup" aria-label="เลือกเกม">
+                <button type="button" data-mode="guess" role="radio">🎯 ทายคำ</button>
+                <button type="button" data-mode="undercover" role="radio">🕵️ ใครคือสปาย</button>
+                <button type="button" data-mode="center" role="radio">❓ ทายคำตรงกลาง</button>
+              </div>
+              <p id="modeHint" class="muted small-text"></p>
+              <label id="categoryRow">หมวด
+                <select id="categorySelect"></select>
+              </label>
+              <label id="whiteRow" class="check" hidden>
+                <input type="checkbox" id="whiteCheck" />
+                <span>เพิ่ม 🤍 Mr. White (ไม่ได้คำ ต้องเนียน) — 5 คนขึ้นไป</span>
+              </label>
+            </div>
+            <label>⏱️ เวลาต่อตา
+              <select id="timeSelect">
+                <option value="30">30 วินาที</option>
+                <option value="45">45 วินาที</option>
+                <option value="60">1 นาที</option>
+                <option value="90">1 นาที 30 วินาที</option>
+                <option value="120">2 นาที</option>
+                <option value="0">ไม่จับเวลา</option>
+              </select>
             </label>
             <button id="startBtn">เริ่มรอบใหม่</button>
             <button id="endBtn" class="secondary" hidden>จบรอบ/เฉลยทั้งหมด</button>
@@ -75,16 +102,57 @@
           <span id="waitTurnText"></span>
           <button id="skipBtn" type="button" class="small" hidden>✅ จบตา</button>
         </div>
+        <div id="gAnswerRow" class="answer-row" hidden>
+          <button type="button" data-a="yes">✅ ใช่</button>
+          <button type="button" data-a="no">❌ ไม่ใช่</button>
+          <button type="button" data-a="maybe" class="secondary">🤔 อาจจะ</button>
+        </div>
         <div id="myTurn">
           <div class="target-line">
-            <span>🫵 ตาคุณ! ทายคำของ</span>
-            <select id="targetSelect" aria-label="เลือกคนที่จะทาย"></select>
+            <span id="gTargetLabel">🫵 ตาคุณ! ถามเพื่อน</span>
+            <select id="targetSelect" aria-label="เลือกเพื่อน"></select>
           </div>
           <div class="guess-row">
-            <input id="guessInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" placeholder="พิมพ์คำที่ทาย…" aria-label="คำที่ทาย" />
-            <button type="submit">ทาย!</button>
-            <button id="passBtn" type="button" class="secondary" title="ถามเสร็จแล้ว ส่งตาให้คนถัดไป">✅ จบตา</button>
+            <input id="guessInput" maxlength="100" autocomplete="off" autocorrect="off" enterkeyhint="send" aria-label="คำถามหรือคำที่ทาย" />
+            <button type="submit" id="gSend">ถาม</button>
+            <button id="gModeBtn" type="button" class="secondary">🎯 ทายเลย</button>
+            <button id="passBtn" type="button" class="secondary" title="ส่งตาให้คนถัดไป">จบตา</button>
           </div>
+        </div>
+      </form>
+
+      <!-- แถบล่างจอของเกมทายคำตรงกลาง -->
+      <form id="ctBar" class="guessbar" hidden>
+        <div class="wait-turn">
+          <span id="ctInfoText"></span>
+          <button id="ctSkipBtn" type="button" class="small" hidden>✅ จบตา</button>
+        </div>
+        <div id="ctAnswerRow" class="answer-row" hidden>
+          <button type="button" data-a="yes">✅ ใช่</button>
+          <button type="button" data-a="no">❌ ไม่ใช่</button>
+          <button type="button" data-a="maybe" class="secondary">🤔 อาจจะ</button>
+        </div>
+        <div id="ctInputRow" class="guess-row" hidden>
+          <input id="ctInput" maxlength="100" autocomplete="off" autocorrect="off" enterkeyhint="send" aria-label="คำถามหรือคำที่ทาย" />
+          <button type="submit" id="ctSend">ถาม</button>
+          <button id="ctModeBtn" type="button" class="secondary">🎯 ทายเลย</button>
+          <button id="ctPassBtn" type="button" class="secondary">จบตา</button>
+        </div>
+      </form>
+
+      <!-- แถบล่างจอของเกมใครคือสปาย -->
+      <form id="ucBar" class="guessbar" hidden>
+        <div id="ucInfo" class="wait-turn">
+          <span id="ucInfoText"></span>
+          <span class="row">
+            <button id="ucSkipBtn" type="button" class="small" hidden>✅ จบตา</button>
+            <button id="closeVoteBtn" type="button" class="small" hidden>🗳️ ปิดโหวต</button>
+          </span>
+        </div>
+        <div id="ucInputRow" class="guess-row" hidden>
+          <input id="ucInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" aria-label="ข้อความ" />
+          <button type="submit" id="ucSend">ส่ง</button>
+          <button id="ucPassBtn" type="button" class="secondary">ข้าม</button>
         </div>
       </form>
     </section>
@@ -93,7 +161,7 @@
   <!-- แชท: เต็มจอบนมือถือ / ลิ้นชักด้านขวาบนคอม -->
   <div id="chatSheet" class="sheet" hidden role="dialog" aria-label="แชท">
     <div class="sheet-head">
-      <b>💬 แชทในห้อง</b>
+      <b>💬 แชทในห้อง <span class="muted small-text">· ล้างทุกครั้งที่เปลี่ยนตา</span></b>
       <button id="chatClose" class="secondary small" type="button">ปิด ✕</button>
     </div>
     <ul id="chatList" class="chat-list"></ul>
@@ -101,7 +169,7 @@
       <button type="button" class="chip" data-q="✅ ใช่">✅ ใช่</button>
       <button type="button" class="chip" data-q="❌ ไม่ใช่">❌ ไม่ใช่</button>
       <button type="button" class="chip" data-q="🤏 ใกล้แล้ว!">🤏 ใกล้แล้ว!</button>
-      <button type="button" class="chip" data-q="🤔 ไม่แน่ใจ">🤔 ไม่แน่ใจ</button>
+      <button type="button" class="chip" data-q="🤔 อาจจะ">🤔 อาจจะ</button>
       <button type="button" class="chip" data-q="😂">😂</button>
     </div>
     <form id="chatForm" class="chat-form">

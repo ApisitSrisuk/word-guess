@@ -60,6 +60,42 @@ r.endRound();
 assert.strictEqual(r.state, 'reveal');
 assert.strictEqual(r.players.get('c').score, 5, 'คนรอดได้ +3');
 
+// ถาม-ตอบ: ถามเพื่อน 1 คน → เพื่อนตอบ ใช่/ไม่ใช่/อาจจะ เท่านั้น → ทายได้เฉพาะคนที่ถาม 1 ครั้ง
+{
+  const q = new Room('Q');
+  q.addPlayer('a', 'เอ');
+  q.addPlayer('b', 'บี');
+  q.addPlayer('c', 'ซี');
+  q.start('ผลไม้');
+  q.turnOrder = ['a', 'b', 'c'];
+  q.turn = 0;
+  q.players.get('b').word = { display: 'มะม่วง', answers: ['มะม่วง'] };
+  const k1 = q.chatKey();
+  assert.throws(() => q.guessAsk('b', 'c', 'x'), /ยังไม่ถึงตา/);
+  assert.throws(() => q.guessAsk('a', 'a', 'x'), /ถามคนนี้ไม่ได้/);
+  q.guessAsk('a', 'b', 'สีเหลืองไหม');
+  assert.strictEqual(q.currentTurnId(), 'b', 'รอบีตอบ');
+  assert.strictEqual(q.guess('a', 'b', 'มะม่วง'), null, 'รอคำตอบอยู่ ยังทายไม่ได้');
+  assert.throws(() => q.guessAnswer('c', 'yes'), /ไม่ได้ถามคุณ/);
+  assert.throws(() => q.guessAnswer('b', 'ใกล้แล้ว'), /คำตอบไม่ถูกต้อง/, 'ตอบได้แค่ ใช่/ไม่ใช่/อาจจะ');
+  q.guessAnswer('b', 'maybe');
+  assert.strictEqual(q.viewFor('c').gq.qa.b[0].a, 'maybe');
+  assert.strictEqual(q.viewFor('c').gq.answers.maybe, '🤔 อาจจะ');
+  assert.strictEqual(q.currentTurnId(), 'a', 'ได้คำตอบแล้ว ตาคนถาม');
+  assert.strictEqual(q.chatKey(), k1, 'แชทไม่ล้างกลางตา');
+  assert.strictEqual(q.guess('a', 'c', 'x'), null, 'ถามใครต้องทายคนนั้น');
+  assert.strictEqual(q.guess('a', 'b', 'มะม่วง'), true);
+  assert.strictEqual(q.currentTurnId(), 'b');
+  assert.notStrictEqual(q.chatKey(), k1, 'ตาใหม่ → ล้างแชท');
+  // คนตอบไม่ตอบ (หมดเวลา) → คนถามได้ทายต่อ
+  q.guessAsk('b', 'c', 'กลมไหม');
+  assert.ok(q.timeoutTurn());
+  assert.strictEqual(q.gq.qa.c[0].a, 'none');
+  assert.strictEqual(q.currentTurnId(), 'b');
+  assert.ok(q.pass('b'));
+  assert.strictEqual(q.currentTurnId(), 'c');
+}
+
 // แชท: ห้ามพิมพ์คำลับตัวเองระหว่างรอบ
 r.start('จังหวัด');
 r.players.get('a').word = { display: 'เชียงใหม่', answers: ['เชียงใหม่'] };

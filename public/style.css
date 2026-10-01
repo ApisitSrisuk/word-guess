@@ -267,3 +267,68 @@ button.armed { background: var(--bad); color: #fff; border-color: var(--bad); an
 @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
 
 .top-actions button { white-space: nowrap; }
+
+/* ---------- เลือกเกม (หัวห้อง) ---------- */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 14px; background: var(--bg); border: 1px solid var(--line); margin-bottom: 8px; }
+.seg button { background: transparent; color: var(--ink); border: 0; min-height: 44px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.small-text { font-size: .85rem; font-weight: 400; }
+#modeHint { margin: 0 0 12px; }
+label.check { display: flex; align-items: flex-start; gap: 10px; font-weight: 400; }
+label.check input { width: 22px; min-height: 22px; height: 22px; margin: 2px 0 0; flex: 0 0 auto; accent-color: var(--accent); }
+
+/* ---------- ป้ายรอง + ตัวนับถอยหลัง ---------- */
+.sub-banner { text-align: center; margin: -6px 0 12px; color: var(--muted); font-size: .9rem; }
+.sub-banner b { color: var(--ink); }
+.timer { margin: 0 0 12px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.timer-track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; }
+.timer-track i { display: block; height: 100%; background: var(--accent); transition: width .25s linear; }
+.timer.urgent { color: var(--bad); }
+.timer.urgent .timer-track i { background: var(--bad); }
+.turn-strip li.done { opacity: .55; }
+.turn-strip li.done.now { opacity: 1; }
+
+/* ---------- ใครคือสปาย ---------- */
+.clues { list-style: none; margin: 8px 0 6px; padding: 0; text-align: left; font-size: .9rem; }
+.clues li { padding: 4px 8px; border-radius: 8px; background: var(--bg); margin-bottom: 4px; overflow-wrap: anywhere; }
+.clues .rno { display: inline-block; min-width: 2em; font-size: .7rem; color: var(--muted); }
+.mycard .clues { max-width: 360px; margin-inline: auto; }
+.player.uc-card { padding-top: 26px; }
+.player.votable { border-style: dashed; }
+.player.is-out, .mycard.is-out { opacity: .55; }
+.player.is-out .name { text-decoration: line-through; }
+.player.role-uc { border-color: var(--bad); }
+.player.role-white { border-color: var(--muted); border-style: dotted; }
+.tally { font-size: .75rem; color: var(--bad); font-weight: 700; }
+#ucBar .row { display: flex; gap: 6px; }
+
+/* ---------- คอม (จอกว้าง): แชทเปิดค้างด้านขวาตลอด ---------- */
+@media (min-width: 1100px) {
+  body:has(#room:not([hidden])) main { margin-right: 380px; }
+  body:has(#room:not([hidden])) #chatSheet[hidden] { display: flex !important; }
+  #chatSheet { width: 380px; }
+  #chatClose, #chatBtn { display: none; }
+  body:has(#room[hidden]) #chatSheet { display: none !important; }
+}
+
+/* ---------- ทายคำตรงกลาง ---------- */
+.seg { grid-template-columns: repeat(3, 1fr); }
+.seg button { font-size: .85rem; padding: 6px 4px; line-height: 1.25; }
+.center-board .big.secret { letter-spacing: 6px; }
+.qa { list-style: none; margin: 10px 0 0; padding: 0; text-align: left; max-height: 320px; overflow-y: auto; }
+.qa li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; padding: 8px 10px; border-radius: 10px; background: var(--bg); margin-bottom: 6px; overflow-wrap: anywhere; }
+.qa .rno { font-size: .7rem; color: var(--muted); min-width: 1.4em; }
+.qa .ans { margin-left: auto; font-weight: 700; white-space: nowrap; }
+.qa .ans-yes { color: var(--ok); }
+.qa .ans-no { color: var(--bad); }
+.qa .ans-maybe, .qa .ans-none, .qa .ans-wait { color: var(--muted); font-weight: 400; }
+.wrong-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.chip-x { font-size: .8rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.answer-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 6px; }
+.answer-row button { min-height: 56px; font-size: 1.05rem; }
+.player.role-master { border-color: var(--accent); border-style: dotted; }
+
+/* ถาม-ตอบบนการ์ดเพื่อน (เกมทายคำ) */
+.qa-mini { max-height: 140px; margin-top: 6px; font-size: .8rem; }
+.qa-mini li { padding: 4px 8px; margin-bottom: 4px; }
+#targetSelect:disabled { opacity: 1; }

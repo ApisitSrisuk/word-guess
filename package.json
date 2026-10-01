@@ -1,13 +1,13 @@
 {
   "name": "word-guess-game",
   "version": "3.0.0",
-  "description": "เกมทายคำกับเพื่อน — ทุกคนได้คำลับไม่ซ้ำกัน แล้วแข่งกันทายคำของเพื่อน",
+  "description": "เกมปาร์ตี้กับเพื่อน — ทายคำ, ใครคือสปาย, ทายคำตรงกลาง เล่นบนมือถือ",
   "private": true,
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test.js && node test-server.js"
+    "test": "node test.js && node test-undercover.js && node test-center.js && node test-server.js"
   },
   "dependencies": {
     "express": "^4.21.2",
