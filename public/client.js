@@ -165,6 +165,7 @@ function notify(prev, s) {
     lastRound = s.round;
     peek = false;
     toast(uc ? '🕵️ เกมใหม่: ใครคือสปาย! ดูคำของคุณ'
+      : s.mode === 'cheese' && s.ch ? (s.ch.amThief ? '🐀 คุณคือหัวขโมย! ทอยเต๋าแล้วอย่าให้ใครจับได้' : '🧀 หัวขโมยชีส — ทอยเต๋าลับกันก่อน!')
       : s.mode === 'center' && s.ct ? (s.ct.amMaster ? '🎙️ คุณเป็นคนตอบรอบนี้! ดูคำลับได้เลย' : `❓ ทายคำตรงกลาง — หมวด ${s.category}`)
       : `🎲 รอบใหม่! หมวด: ${s.category}`, 150);
   }
@@ -176,6 +177,16 @@ function notify(prev, s) {
       : uc.phase === 'white' ? '🤍 คุณโดนโหวตออก! ทายคำของชาวบ้านให้ถูกเพื่อชนะ'
       : '🫵 ถึงตาคุณใบ้คำแล้ว!';
     setTimeout(() => toast(msg, [120, 60, 120]), prev && prev.round !== s.round ? 1200 : 0);
+  }
+  const ch = s.mode === 'cheese' && s.ch;
+  const pch = prev && prev.mode === 'cheese' && prev.ch;
+  if (ch && (!pch || pch.phase !== ch.phase || pch.hour !== ch.hour)) {
+    if (ch.phase === 'night' && ch.awakeNow) {
+      toast(ch.pending === 'peek' ? `👀 ตี ${ch.hour} คุณตื่นคนเดียว! เลือกแอบดูเต๋าเพื่อน 1 คน`
+        : ch.pending === 'recruit' ? '🐀 ถึงเวลาขโมยชีส! เลือกชวนผู้สมรู้ร่วมคิด 1 คน'
+        : `👀 ตี ${ch.hour} คุณตื่น!`, [150, 80, 150]);
+    } else if (ch.phase === 'night' && (!pch || pch.phase !== 'night')) toast('🌙 กลางคืนแล้ว… ทุกคนหลับ ห้ามคุย 🤫', 100);
+    else if (ch.phase === 'day') toast('☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย?', [100, 60, 100]);
   }
   if (uc && uc.phase === 'vote' && (!prev || !prev.uc || prev.uc.phase !== 'vote')) {
     toast(uc.alive.includes(s.me) ? '🗳️ ถึงเวลาโหวต! แตะการ์ดคนที่สงสัย' : '🗳️ เพื่อนกำลังโหวต', [80, 40, 80]);
@@ -232,14 +243,17 @@ function fmtTime(ms) {
 }
 function tickTimer() {
   const box = $('timer');
-  const on = !!(state && state.state === 'playing' && turnDeadline && state.turnLimit);
+  const total = state && (state.turnTotalMs || state.turnLimit * 1000);
+  const on = !!(state && state.state === 'playing' && turnDeadline && total);
   box.hidden = !on;
   if (!on) return;
   const left = Math.max(0, turnDeadline - Date.now());
   const uc = state.mode === 'undercover' && state.uc;
-  const what = uc && uc.phase === 'vote' ? 'เวลาโหวต' : 'เวลาตานี้';
+  const ch = state.mode === 'cheese' && state.ch;
+  const what = ch ? { roll: 'เวลาทอย', night: `🌙 ตี ${ch.hour}`, day: 'เวลาคุย+โหวต' }[ch.phase] || ''
+    : uc && uc.phase === 'vote' ? 'เวลาโหวต' : 'เวลาตานี้';
   $('timerText').textContent = `⏱️ ${what} ${fmtTime(left)}`;
-  $('timerFill').style.width = `${Math.min(100, (left / (state.turnLimit * 1000)) * 100)}%`;
+  $('timerFill').style.width = `${Math.min(100, (left / total) * 100)}%`;
   box.classList.toggle('urgent', left <= 10000);
 }
 setInterval(tickTimer, 250);
@@ -384,6 +398,22 @@ $('ctSkipBtn').addEventListener('click', () => {
   const cur = state.players.find((p) => p.id === state.currentTurn);
   const turnId = state.currentTurn;
   confirmTap($('ctSkipBtn'), `แตะอีกครั้ง ข้าม ${cur ? cur.name : ''}`, () => act($('ctSkipBtn'), 'pass', { turnId }, '✅ จบตาแล้ว'));
+});
+
+// ---------- หัวขโมยชีส: ทอย / แอบดู / ชวน / ปิดโหวต ----------
+$('chRollBtn').addEventListener('click', () => {
+  act($('chRollBtn'), 'roll').then((res) => {
+    if (res && res.die) toast(`🎲 คุณทอยได้ ${res.die} — คืนนี้คุณจะตื่นตอนตี ${res.die}`, [80, 40, 80]);
+  });
+});
+$('chActions').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-target]');
+  if (!b) return;
+  const action = b.dataset.action;
+  act(b, action, { targetId: b.dataset.target }, action === 'recruit' ? `🤝 ชวน ${b.dataset.name} แล้ว` : null);
+});
+$('chCloseVote').addEventListener('click', () => {
+  confirmTap($('chCloseVote'), 'แตะอีกครั้ง นับผลเลย', () => act($('chCloseVote'), 'closeVote'));
 });
 
 // ---------- แชท ----------
@@ -536,10 +566,11 @@ function renderLeaderboard(s) {
   $('lbCard').classList.toggle('spotlight', s.state === 'reveal');
 }
 
-const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง' };
+const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส' };
 const MODE_HINT = {
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
+  cheese: 'ทอยเต๋าลับ กลางคืนใครทอยได้เลขไหนตื่นตีนั้น 1 คนเป็นหัวขโมย ตอนเช้าคุยกันแล้วโหวตจับขโมย (3 คนขึ้นไป)',
   center: 'สุ่ม 1 คนเป็นคนตอบ (เห็นคำลับคนเดียว) ที่เหลือผลัดกันถามใช่/ไม่ใช่ แล้วแข่งกันทายให้ถูกก่อน (ถามได้ 20 ข้อ)',
 };
 const ROLE = { civ: '🏡 ชาวบ้าน', uc: '🕵️ สปาย', white: '🤍 Mr. White' };
@@ -550,6 +581,8 @@ function render() {
   const isHost = s.hostId === s.me;
   const ucMode = s.mode === 'undercover' && s.uc && s.state !== 'lobby';
   const ctMode = s.mode === 'center' && s.ct && s.state !== 'lobby';
+  const chMode = s.mode === 'cheese' && s.ch && s.state !== 'lobby';
+  document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
   $('roomCode').textContent = s.code;
@@ -567,7 +600,9 @@ function render() {
   $('turnStrip').querySelector('.now')?.scrollIntoView({ block: 'nearest', inline: 'center' });
 
   $('ctBar').hidden = true;
-  if (ctMode) renderCenter(s, me, isHost, turnPlayer);
+  $('chBar').hidden = true;
+  if (chMode) renderCheese(s, me, isHost);
+  else if (ctMode) renderCenter(s, me, isHost, turnPlayer);
   else if (ucMode) renderUndercover(s, me, isHost, turnPlayer);
   else renderGuess(s, me, isHost, turnPlayer);
 
@@ -592,9 +627,9 @@ function renderHost(s, isHost) {
     b.setAttribute('aria-checked', on);
   }
   $('modeHint').textContent = MODE_HINT[s.nextMode];
-  $('categoryRow').hidden = s.nextMode === 'undercover';
+  $('categoryRow').hidden = s.nextMode === 'undercover' || s.nextMode === 'cheese';
   $('whiteRow').hidden = s.nextMode !== 'undercover';
-  $('startBtn').textContent = s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
+  $('startBtn').textContent = s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
   const sel = $('categorySelect');
   if (sel.options.length === 0) {
     sel.innerHTML = '<option value="random">🎲 สุ่มหมวด</option>' +
@@ -809,6 +844,117 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
 }
 
+// ---------- หัวขโมยชีส ----------
+const DIE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+function renderCheese(s, me, isHost) {
+  const ch = s.ch;
+  const over = ch.phase === 'over';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('turnStrip').hidden = true;
+
+  $('banner').textContent = {
+    roll: '🎲 ทอยเต๋าลับ — อย่าให้ใครเห็นนะ!',
+    night: `🌙 กลางคืน · ตี ${ch.hour}`,
+    day: '☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย?',
+    over: { mice: '🐭 หนูดีจับขโมยได้!', thief: `🐀 ${nameOf(ch.thiefId)} ขโมยสำเร็จ!` }[ch.winner] || '🏁 จบเกม',
+  }[ch.phase];
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = {
+    roll: `ทอยแล้ว ${ch.rolled.length}/${ch.ids.length} คน`,
+    night: `<span class="clock">${[1, 2, 3, 4, 5, 6].map((h) => `<i class="${h === ch.hour ? 'now' : h < ch.hour ? 'past' : ''}">${h}</i>`).join('')}</span>`,
+    day: `คุยกันในแชท แล้วแตะการ์ดคนที่คิดว่าเป็นขโมย · โหวตแล้ว ${ch.voted.length}/${ch.voters}`,
+    over: `หัวขโมยคือ <b>${esc(nameOf(ch.thiefId))}</b>${ch.accompliceId ? ` · ผู้สมรู้ร่วมคิด <b>${esc(nameOf(ch.accompliceId))}</b>` : ''}`,
+  }[ch.phase];
+
+  // การ์ดของฉัน: เต๋า + บทบาท + สิ่งที่เห็นเมื่อคืน
+  let role = '🐭 คุณคือหนูดี — หาให้ได้ว่าใครขโมยชีส';
+  if (ch.amThief) role = `🐀 คุณคือหัวขโมย! คุณขโมยชีสตอนตี ${ch.myDie || '?'}${ch.wantAccomplice ? ' (ชวนผู้สมรู้ร่วมคิดได้ 1 คน)' : ''}`;
+  else if (ch.amAccomplice) role = `🤝 คุณเป็นผู้สมรู้ร่วมคิดของ ${esc(nameOf(ch.thiefId))} — ช่วยให้ขโมยรอด`;
+  if (!ch.inGame) role = '👀 คุณเข้ามากลางเกม — ดูไปก่อน รอเกมหน้า';
+  const showDie = peek || over;
+  const die = ch.myDie
+    ? `<div class="big die ${showDie ? '' : 'blur'}">${DIE[ch.myDie]} ${ch.myDie}</div>`
+    : ch.inGame ? '<div class="big die">🎲 ?</div>' : '';
+  const mems = ch.memories.length
+    ? `<ul class="memories">${ch.memories.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>`
+    : ch.phase === 'roll' || !ch.inGame ? '' : '<p class="muted small-text">ยังไม่มีอะไรในความทรงจำ…</p>';
+  $('myCard').innerHTML = `<div class="mycard cheese-card ${ch.amThief ? 'is-thief' : ''}">
+    <div class="label"><span>🎲 เต๋าของ${esc(me ? me.name : '')}</span><span>${me ? me.score : 0} แต้ม${isHost ? ' 👑' : ''}</span></div>
+    ${die}
+    <div class="hint">${ch.myDie && !showDie ? '👆 แตะเพื่อดูเต๋า · ' : ''}${role}</div>
+    ${mems}
+  </div>`;
+
+  // การ์ดเพื่อน
+  const canVote = ch.phase === 'day' && ch.inGame;
+  $('players').innerHTML = s.players
+    .filter((p) => p.id !== s.me)
+    .map((p) => {
+      const inGame = ch.ids.includes(p.id);
+      let status = '';
+      if (!inGame) status = '👀 ดูอยู่';
+      else if (ch.phase === 'roll') status = ch.rolled.includes(p.id) ? '🎲 ทอยแล้ว' : '…ยังไม่ทอย';
+      else if (ch.phase === 'night') status = ch.awakeWith.includes(p.id) ? '👀 ตื่นอยู่กับคุณ' : '😴';
+      else if (ch.phase === 'day') status = ch.voted.includes(p.id) ? '✓ โหวตแล้ว' : '…ยังไม่โหวต';
+      else if (over) status = p.id === ch.thiefId ? '🐀 หัวขโมย' : p.id === ch.accompliceId ? '🤝 ผู้สมรู้ร่วมคิด' : '🐭 หนูดี';
+      if (ch.amAccomplice && p.id === ch.thiefId && !over) status += ' · 🐀 (ขโมย)';
+      if (ch.amThief && p.id === ch.accompliceId && !over) status += ' · 🤝 (พวกคุณ)';
+      if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+      const votable = canVote && inGame;
+      const dieOver = over && ch.dice && ch.dice[p.id] ? `<div class="word">${DIE[ch.dice[p.id]]} ${ch.dice[p.id]}</div>` : '';
+      const tally = over && ch.tally && ch.tally[p.id] ? `<span class="tally">🗳️ ${ch.tally[p.id]}</span>` : '';
+      const cls = ['player', !p.connected && 'off', votable && 'votable target', ch.myVote === p.id && 'selected',
+        over && p.id === ch.thiefId && 'role-uc', ch.awakeWith.includes(p.id) && 'awake'].filter(Boolean).join(' ');
+      return `<div class="${cls}" data-id="${esc(p.id)}" data-name="${esc(p.name)}">
+        ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+        <span class="score">${p.score} แต้ม</span>
+        <div class="name">${esc(p.name)} ${tally}</div>
+        ${dieOver}
+        <div class="status">${votable ? (ch.myVote === p.id ? '🗳️ คุณโหวตคนนี้' : '👆 แตะเพื่อโหวต') : status}</div>
+      </div>`;
+    })
+    .join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // เฉลยทั้งคืน
+  if (over && ch.log) {
+    $('players').insertAdjacentHTML('beforeend', `<div class="card night-log" style="grid-column:1/-1">
+      <h3>🌙 เมื่อคืนเกิดอะไรขึ้น</h3><ul>${ch.log.map((l) => `<li>${esc(l)}</li>`).join('')}</ul></div>`);
+  }
+
+  // แถบล่างจอ
+  const bar = $('chBar');
+  bar.hidden = over || !ch.inGame;
+  if (bar.hidden) return;
+  const myRolled = ch.rolled.includes(s.me);
+  let info = '';
+  let actions = '';
+  if (ch.phase === 'roll') {
+    info = myRolled ? `🎲 ทอยแล้ว! รอเพื่อน (${ch.rolled.length}/${ch.ids.length})` : '🎲 กดทอยเต๋า — เลขที่ได้คือเวลาที่คุณจะตื่นตอนกลางคืน';
+  } else if (ch.phase === 'night') {
+    const others = ch.ids.filter((id) => id !== s.me && s.players.some((p) => p.id === id));
+    if (ch.pending === 'peek') {
+      info = `👀 ตี ${ch.hour}: คุณตื่นคนเดียว! แอบดูเต๋าของใครดี?`;
+      actions = others.map((id) => `<button type="button" data-action="peek" data-target="${esc(id)}" data-name="${esc(nameOf(id))}">🔍 ${esc(nameOf(id))}</button>`).join('');
+    } else if (ch.pending === 'recruit') {
+      info = `🐀 ตี ${ch.hour}: ขโมยชีสแล้ว! ชวนใครเป็นผู้สมรู้ร่วมคิด?`;
+      actions = others.map((id) => `<button type="button" data-action="recruit" data-target="${esc(id)}" data-name="${esc(nameOf(id))}">🤝 ${esc(nameOf(id))}</button>`).join('');
+    } else if (ch.awakeNow) {
+      info = ch.awakeWith.length ? `👀 ตี ${ch.hour}: คุณตื่น! เห็น ${ch.awakeWith.map(nameOf).join(', ')}` : `👀 ตี ${ch.hour}: คุณตื่นแล้ว`;
+    } else {
+      info = `😴 ตี ${ch.hour}… คุณหลับอยู่`;
+    }
+  } else if (ch.phase === 'day') {
+    info = ch.myVote ? `🗳️ คุณโหวต ${nameOf(ch.myVote)} แล้ว (เปลี่ยนใจได้) · ${ch.voted.length}/${ch.voters}` : `🗳️ แตะการ์ดคนที่คิดว่าเป็นขโมย · ${ch.voted.length}/${ch.voters}`;
+  }
+  $('chInfoText').textContent = info;
+  $('chRollBtn').hidden = !(ch.phase === 'roll' && !myRolled);
+  $('chActions').hidden = !actions;
+  if ($('chActions').innerHTML !== actions) $('chActions').innerHTML = actions;
+  $('chCloseVote').hidden = !(isHost && ch.phase === 'day');
+}
+
 // ---------- ทายคำตรงกลาง ----------
 function renderCenter(s, me, isHost, turnPlayer) {
   const ct = s.ct;
@@ -921,6 +1067,10 @@ function feedItem(f) {
       if (f.reason === 'maxq') return `<li class="ok">🎙️ ครบ 20 คำถาม ไม่มีใครทายถูก — <b>${esc(f.name)}</b> (คนตอบ) +3 · คำคือ "${esc(f.word)}"</li>`;
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
+    case 'ch-over': return f.winner
+      ? `<li class="ok">${f.winner === 'mice' ? '🐭 หนูดีชนะ! จับ' : '🐀 ขโมยชนะ!'} <b>${esc(f.thief)}</b>${f.winner === 'mice' ? ' ได้ (+2)' : ' รอด (+4)'}${f.accomplice ? ` · ผู้สมรู้ร่วมคิด: ${esc(f.accomplice)}` : ''}</li>`
+      : '<li class="muted">🏁 หัวห้องจบเกม</li>';
+    case 'ch-left': return '<li class="muted">🐀 หัวขโมยหนีออกจากห้อง!</li>';
     case 'uc-tie': return '<li class="muted">🤝 โหวตเสมอ — ไม่มีใครออก ใบ้ต่อรอบหน้า</li>';
     case 'uc-out': return `<li class="${f.role === 'ชาวบ้าน' ? 'bad' : 'ok'}">🗳️ <b>${esc(f.name)}</b> โดนโหวตออก (${f.votes} เสียง) — เป็น <b>${esc(f.role)}</b></li>`;
     case 'uc-white': return f.text == null

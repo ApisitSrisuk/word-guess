@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center'];
+const MODES = ['guess', 'undercover', 'center', 'cheese'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -33,12 +33,14 @@ function syncTimer(room) {
   if (key === room._timerKey) return;
   clearTimeout(room._timer);
   room._timerKey = key;
-  room.turnEndsAt = key ? Date.now() + room.turnLimit * 1000 : null;
+  const ms = key ? room.timerMs() : 0;
+  room.turnEndsAt = key ? Date.now() + ms : null;
+  room.turnTotalMs = key ? ms : null;
   if (!key) return;
   room._timer = setTimeout(() => {
     if (room.timerKey() !== key) return;
     if (room.timeoutTurn()) broadcast(room);
-  }, room.turnLimit * 1000);
+  }, ms);
 }
 
 // เปลี่ยนตา → ล้างแชทของทุกคน แล้วบอกว่าตาใคร
@@ -50,7 +52,10 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'center') {
+  if (room.mode === 'cheese') {
+    label = { roll: '🎲 ทอยเต๋าลับกันก่อน — อย่าบอกใครนะ!', night: '🌙 กลางคืนแล้ว… ทุกคนหลับ ห้ามคุย 🤫', day: '☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย? คุยกันแล้วโหวต' }[room.ch.phase];
+    if (!label) return;
+  } else if (room.mode === 'center') {
     const cur = room.players.get(room.ctAsker());
     label = `❓ ตาของ ${cur ? cur.name : '?'} — ถามใช่/ไม่ใช่ หรือทายเลย`;
   } else if (room.mode === 'undercover' && room.uc.phase === 'vote') label = '🗳️ ถึงเวลาโหวต! คุยกันได้เลยว่าใครน่าสงสัย';
@@ -177,6 +182,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'cheese') {
+            r.startCheese();
           } else if (r.nextMode === 'center') {
             r.startCenter(data.category);
           } else {
@@ -195,12 +202,26 @@ io.on('connection', (socket) => {
           r.ucClue(me.id, data.text);
           break;
         case 'vote':
-          r.ucVote(me.id, String(data.targetId || ''));
+          if (r.mode === 'cheese') r.chVote(me.id, String(data.targetId || ''));
+          else r.ucVote(me.id, String(data.targetId || ''));
           break;
         case 'closeVote':
           if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
+          if (r.mode === 'cheese' && r.state === 'playing' && r.ch.phase === 'day') {
+            r.chResolve();
+            break;
+          }
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
+          break;
+        case 'roll':
+          out.die = r.chRoll(me.id);
+          break;
+        case 'peek':
+          r.chPeek(me.id, String(data.targetId || ''));
+          break;
+        case 'recruit':
+          r.chRecruit(me.id, String(data.targetId || ''));
           break;
         case 'ask':
           if (r.mode === 'guess') r.guessAsk(me.id, String(data.targetId || ''), data.text);

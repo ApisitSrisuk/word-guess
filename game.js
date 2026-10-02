@@ -45,6 +45,7 @@ class Room {
     this.mode = 'guess'; // guess = ทายคำ | undercover = ใครคือสปาย | center = ทายคำตรงกลาง
     this.uc = null;
     this.ct = null;
+    this.ch = null; // หัวขโมยชีส
     this.nextMode = 'guess'; // เกมที่หัวห้องเลือกไว้สำหรับรอบหน้า (ทุกคนเห็น)
     // เกมทายคำ: ตาเรา = ถามใช่/ไม่ใช่เพื่อน 1 คน → เพื่อนตอบ → ทายคำของเพื่อนคนนั้น 1 ครั้ง (หรือทายเลยไม่ต้องถาม)
     this.gq = { phase: 'ask', targetId: null, turnNo: 0, qa: {} };
@@ -59,18 +60,27 @@ class Room {
   }
 
   chatKey() {
+    if (this.state === 'playing' && this.mode === 'cheese') return `ch|${this.round}|${this.ch.phase}`;
     if (this.state === 'playing' && this.mode === 'center') return `c|${this.round}|${this.ct.turnNo}`;
     if (this.state === 'playing' && this.mode === 'guess') return `g|${this.round}|${this.gq.turnNo}`;
     return this.turnKey();
   }
 
   timerKey() {
+    if (this.mode === 'cheese') return this.state === 'playing' ? this.chTimerKey() : null; // กลางคืนจับเวลาเสมอ
     return this.turnLimit ? this.turnKey() : null;
+  }
+
+  // ระยะเวลาของตา/ช่วงปัจจุบัน (มิลลิวินาที)
+  timerMs() {
+    if (this.mode === 'cheese') return this.chTimerMs();
+    return this.turnLimit * 1000;
   }
 
   // ตัวระบุ "ตา" ปัจจุบัน — เปลี่ยนเมื่อไหร่ = เริ่มจับเวลาใหม่ + ล้างแชท (null = ไม่ได้อยู่ระหว่างเล่น)
   turnKey() {
     if (this.state !== 'playing') return null;
+    if (this.mode === 'cheese') return this.chTimerKey() || `ch|${this.round}|${this.ch.phase}`;
     if (this.mode === 'center') {
       const c = this.ct;
       return `c|${this.round}|${c.turnNo}|${c.phase}|${c.qa.length}|${this.ctCurrent()}`;
@@ -89,6 +99,7 @@ class Room {
   timeoutTurn() {
     if (this.state !== 'playing') return false;
     if (this.mode === 'center') return this.ctPass(null, { timeout: true });
+    if (this.mode === 'cheese') return this.chTimeout();
     if (this.mode === 'undercover') {
       const u = this.uc;
       if (u.phase === 'vote') {
@@ -155,6 +166,7 @@ class Room {
   // สถานะออนไลน์เปลี่ยน (มีคนหลุด/กลับมา) → รอบโหวตอาจครบแล้ว
   onPresenceChange() {
     if (this.mode === 'undercover') return this.ucCheckVotes();
+    if (this.mode === 'cheese') return this.chCheckVotes();
     return false;
   }
 
@@ -187,6 +199,7 @@ class Room {
     if (this.state !== 'playing') return false;
     if (this.mode === 'undercover') return this.ucAutoSkip();
     if (this.mode === 'center') return this.ctAutoSkip();
+    if (this.mode === 'cheese') return false;
     const cur = this.players.get(this.currentTurnId());
     if (!cur || cur.connected) return false;
     const someoneCan = [...this.players.values()].some((p) => p.connected && this.hasTarget(p.id));
@@ -199,6 +212,7 @@ class Room {
   currentTurnId() {
     if (this.mode === 'undercover') return this.ucCurrent();
     if (this.mode === 'center') return this.ctCurrent();
+    if (this.mode === 'cheese') return null;
     if (this.state === 'playing' && this.gq.phase === 'answer') return this.gq.targetId; // รอเพื่อนตอบ
     return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
   }
@@ -230,6 +244,7 @@ class Room {
     if (!me) return false;
     if (this.mode === 'undercover') return this.ucPass(id);
     if (this.mode === 'center') return this.ctPass(id);
+    if (this.mode === 'cheese') return false;
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
@@ -249,6 +264,9 @@ class Room {
       : this.mode === 'center'
         ? this.ct && this.ct.masterId === id && this.ct.word
         : !p.guessedBy && p.word;
+    if (this.state === 'playing' && this.mode === 'cheese' && this.ch.phase === 'night') {
+      throw new Error('🌙 กลางคืนทุกคนหลับอยู่ ห้ามคุย! รอเช้าก่อนนะ 🤫');
+    }
     if (this.state === 'playing' && secret) {
       const n = normalize(text);
       // คำสั้นมาก (เช่น "ตา") ไม่ตรวจ เพราะไปตรงกับคำอื่นเยอะเกิน
@@ -300,6 +318,7 @@ class Room {
     }
     if (this.mode === 'undercover') this.ucRemove(id);
     if (this.mode === 'center') this.ctRemove(id);
+    if (this.mode === 'cheese') this.chRemove(id);
     this.players.delete(id);
     const idx = this.turnOrder.indexOf(id);
     if (idx !== -1) {
@@ -349,6 +368,7 @@ class Room {
     this.mode = 'guess';
     this.uc = null;
     this.ct = null;
+    this.ch = null;
     this.round += 1;
     this.state = 'playing';
     this.feed = [];
@@ -391,6 +411,14 @@ class Room {
 
   endRound() {
     if (this.state !== 'playing') return;
+    if (this.mode === 'cheese') {
+      // หัวห้องจบเกมกลางคัน → เฉลย ไม่มีใครได้แต้ม
+      this.ch.phase = 'over';
+      this.ch.pending = {};
+      this.state = 'reveal';
+      this.feed.push({ type: 'ch-over', winner: null });
+      return;
+    }
     if (this.mode === 'center') {
       this.ct.phase = 'over';
       this.ct.reason = 'ended';
@@ -429,6 +457,8 @@ class Room {
       nextMode: this.nextMode,
       uc: uc ? this.ucView(id) : null,
       ct: this.mode === 'center' && this.ct ? this.ctView(id) : null,
+      ch: this.mode === 'cheese' && this.ch ? this.chView(id) : null,
+      turnTotalMs: this.turnTotalMs || null,
       gq: this.mode === 'guess' ? { turnNo: this.gq.turnNo, phase: this.gq.phase, targetId: this.gq.targetId, asker: this.gAsker(), qa: this.gq.qa, answers: ANSWERS } : null,
       state: this.state,
       category: this.category,
@@ -459,5 +489,6 @@ class Room {
 
 require('./undercover').install(Room, { shuffle, normalize, parseEntry });
 require('./center').install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGORIES });
+require('./cheese').install(Room, { shuffle });
 
 module.exports = { Room, CATEGORIES, TURN_LIMITS, normalize };

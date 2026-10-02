@@ -332,3 +332,22 @@ label.check input { width: 22px; min-height: 22px; height: 22px; margin: 2px 0 0
 .qa-mini { max-height: 140px; margin-top: 6px; font-size: .8rem; }
 .qa-mini li { padding: 4px 8px; margin-bottom: 4px; }
 #targetSelect:disabled { opacity: 1; }
+
+/* ---------- หัวขโมยชีส ---------- */
+.seg { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 560px) { .seg { grid-template-columns: repeat(4, 1fr); } }
+body.night { --bg: #0d1117; --card: #161b26; --line: #263040; --ink: #dfe6f3; --muted: #8391a7; }
+body.night .banner { color: #ffd76a; }
+.die { font-size: 2.4rem; }
+.clock { display: inline-flex; gap: 6px; }
+.clock i { font-style: normal; width: 28px; height: 28px; line-height: 28px; border-radius: 50%; border: 1px solid var(--line); display: inline-block; text-align: center; }
+.clock i.past { opacity: .4; }
+.clock i.now { background: #ffd76a; color: #1c1712; border-color: #ffd76a; font-weight: 700; }
+.memories { list-style: none; margin: 10px 0 0; padding: 0; text-align: left; font-size: .9rem; }
+.memories li { padding: 6px 10px; border-radius: 10px; background: var(--bg); margin-bottom: 6px; overflow-wrap: anywhere; }
+.mycard.is-thief { border-color: var(--bad); }
+.player.awake { border-color: #ffd76a; }
+.roll-btn { width: 100%; min-height: 60px; font-size: 1.25rem; margin-top: 6px; }
+.ch-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
+.night-log ul { margin: 0; padding-left: 18px; }
+.night-log li { margin-bottom: 4px; }
