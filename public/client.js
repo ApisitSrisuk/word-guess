@@ -418,6 +418,72 @@ $('chCloseVote').addEventListener('click', () => {
   confirmTap($('chCloseVote'), 'แตะอีกครั้ง นับผลเลย', () => act($('chCloseVote'), 'closeVote'));
 });
 
+// ---------- เต๋าโกหก: เลือกจำนวน × เลข / ประกาศ / โกหก! ----------
+let lieQ = 1;
+let lieF = 2;
+let lieSeq = -1;
+const DICE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+$('lieFaces').innerHTML = [2, 3, 4, 5, 6].map((f) => `<button type="button" class="secondary face" data-f="${f}">${DICE[f]}</button>`).join('');
+const lieValid = (q, f) => {
+  const b = state.lie.bid;
+  return q >= 1 && q <= state.lie.total && (!b || q > b.q || (q === b.q && f > b.f));
+};
+$('lieQMinus').addEventListener('click', () => { lieQ = Math.max(1, lieQ - 1); render(); });
+$('lieQPlus').addEventListener('click', () => { lieQ = Math.min(state.lie.total, lieQ + 1); render(); });
+$('lieFaces').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-f]');
+  if (!b) return;
+  lieF = Number(b.dataset.f);
+  render();
+});
+$('lieBar').addEventListener('submit', (e) => {
+  e.preventDefault();
+  act($('lieBidBtn'), 'bid', { q: lieQ, f: lieF });
+});
+$('lieCallBtn').addEventListener('click', () => {
+  confirmTap($('lieCallBtn'), 'แน่ใจ? แตะอีกครั้ง', () => act($('lieCallBtn'), 'liar'));
+});
+
+// ---------- Codenames: ใบ้ / เปิดการ์ด (แตะ 2 ครั้ง) / จบตา ----------
+let cnArmed = null;
+let cnArmTimer;
+$('cnBoard').addEventListener('click', (e) => {
+  const b = e.target.closest('.cn-card.pickable');
+  if (!b) return;
+  const i = Number(b.dataset.i);
+  if (cnArmed !== i) {
+    cnArmed = i;
+    clearTimeout(cnArmTimer);
+    cnArmTimer = setTimeout(() => { cnArmed = null; render(); }, 3000);
+    render();
+    return;
+  }
+  cnArmed = null;
+  clearTimeout(cnArmTimer);
+  api('cnPick', { index: i }).then((res) => {
+    if (res.error) return toast(`⚠️ ${res.error}`, 150);
+    const msg = { assassin: '💀 นักฆ่า!! แพ้ทันที', neutral: '😐 ใบกลาง — จบตา' }[res.color];
+    if (msg) toast(msg, [200, 80, 200]);
+    else if (res.color === state.cn.myTeam) toast('✅ ถูก! ทายต่อได้', [60, 40, 60]);
+    else toast('😱 เปิดโดนของทีมตรงข้าม — จบตา', [200, 80, 200]);
+  });
+});
+$('cnBar').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const word = $('cnWord').value.trim();
+  if (!word) return;
+  api('cnClue', { word, num: Number($('cnNum').value) }).then((res) => {
+    if (res.error) return toast(`⚠️ ${res.error}`, 150);
+    $('cnWord').value = '';
+  });
+});
+$('cnPassBtn').addEventListener('click', () => {
+  const c = state.cn;
+  const mine = c.phase === 'guess' && c.myTeam === c.turn && !c.amSpymaster;
+  if (mine) return act($('cnPassBtn'), 'pass', {}, '✅ จบตาแล้ว');
+  confirmTap($('cnPassBtn'), 'แตะอีกครั้ง ข้ามตา', () => act($('cnPassBtn'), 'pass', {}, '✅ ข้ามตาแล้ว'));
+});
+
 // ---------- วาดภาพทายคำ: กระดาน ----------
 const cv = $('drawCanvas');
 const cx = cv.getContext('2d');
@@ -717,10 +783,12 @@ function renderLeaderboard(s) {
   $('lbCard').classList.toggle('spotlight', s.state === 'reveal');
 }
 
-const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ' };
+const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
+  liar: 'ทุกคนมีเต๋าลับ 5 ลูก ผลัดกันประกาศว่าทั้งโต๊ะมีเลขนี้กี่ลูก (เลข ⚀ นับเป็นทุกเลข) หรือกด "โกหก!" ใส่คนก่อนหน้า ใครเต๋าหมดตกรอบ (2 คนขึ้นไป)',
+  codenames: 'แบ่ง 2 ทีม หัวหน้าเห็นสีการ์ด ใบ้ 1 คำ + ตัวเลข ลูกทีมเปิดการ์ดสีทีมตัวเองให้ครบก่อน ระวัง 💀 นักฆ่า! (4 คนขึ้นไป)',
   draw: 'ผลัดกันวาด คนวาดเลือกคำจาก 3 ตัวเลือก คนอื่นพิมพ์ทายแข่งกัน ยิ่งถูกเร็วยิ่งได้แต้มเยอะ (เวลาวาด = เวลาต่อตา)',
   cheese: 'ทอยเต๋าลับ กลางคืนใครทอยได้เลขไหนตื่นตีนั้น 1 คนเป็นหัวขโมย ตอนเช้าคุยกันแล้วโหวตจับขโมย (3 คนขึ้นไป)',
   center: 'สุ่ม 1 คนเป็นคนตอบ (เห็นคำลับคนเดียว) ที่เหลือผลัดกันถามใช่/ไม่ใช่ แล้วแข่งกันทายให้ถูกก่อน (ถามได้ 20 ข้อ)',
@@ -735,6 +803,8 @@ function render() {
   const ctMode = s.mode === 'center' && s.ct && s.state !== 'lobby';
   const chMode = s.mode === 'cheese' && s.ch && s.state !== 'lobby';
   const drMode = s.mode === 'draw' && s.dr && s.state !== 'lobby';
+  const cnMode = s.mode === 'codenames' && s.cn && s.state !== 'lobby';
+  const lieMode = s.mode === 'liar' && s.lie && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -756,7 +826,13 @@ function render() {
   $('chBar').hidden = true;
   $('drBar').hidden = true;
   $('drawStage').hidden = true;
-  if (drMode) renderDraw(s, me, isHost);
+  $('cnBar').hidden = true;
+  $('cnStage').hidden = true;
+  $('lieBar').hidden = true;
+  $('lieStage').hidden = true;
+  if (lieMode) renderLiar(s, me, isHost);
+  else if (cnMode) renderCodenames(s, me, isHost);
+  else if (drMode) renderDraw(s, me, isHost);
   else if (chMode) renderCheese(s, me, isHost);
   else if (ctMode) renderCenter(s, me, isHost, turnPlayer);
   else if (ucMode) renderUndercover(s, me, isHost, turnPlayer);
@@ -783,9 +859,9 @@ function renderHost(s, isHost) {
     b.setAttribute('aria-checked', on);
   }
   $('modeHint').textContent = MODE_HINT[s.nextMode];
-  $('categoryRow').hidden = s.nextMode === 'undercover' || s.nextMode === 'cheese';
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar'].includes(s.nextMode);
   $('whiteRow').hidden = s.nextMode !== 'undercover';
-  $('startBtn').textContent = s.nextMode === 'draw' ? '🎨 เริ่มวาดภาพทายคำ' : s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
+  $('startBtn').textContent = s.nextMode === 'liar' ? '🎲 เริ่มเต๋าโกหก' : s.nextMode === 'codenames' ? '🟥🟦 เริ่ม Codenames' : s.nextMode === 'draw' ? '🎨 เริ่มวาดภาพทายคำ' : s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
   const sel = $('categorySelect');
   if (sel.options.length === 0) {
     sel.innerHTML = '<option value="random">🎲 สุ่มหมวด</option>' +
@@ -998,6 +1074,157 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('ucSkipBtn').hidden = myTurn || !turnPlayer || uc.phase === 'vote';
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
+}
+
+// ---------- เต๋าโกหก ----------
+function renderLiar(s, me, isHost) {
+  const L = s.lie;
+  const over = L.phase === 'over';
+  const reveal = L.phase === 'reveal';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const myTurn = L.phase === 'bid' && s.currentTurn === s.me;
+  const r = L.result;
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('lieStage').hidden = false;
+
+  $('banner').textContent = over
+    ? (L.winner ? `🏆 ${nameOf(L.winner)} ชนะ! เหลือคนสุดท้าย` : '🏁 จบเกม')
+    : reveal ? `🤥 ${nameOf(r.challenger)} ${r.auto ? '(หมดเวลา) ' : ''}ไม่เชื่อ ${nameOf(r.bidder)}!`
+    : `🎲 รอบ ${L.roundNo} · ตาของ ${myTurn ? 'คุณ' : nameOf(s.currentTurn)}`;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = `บนโต๊ะมีเต๋า <b>${L.total}</b> ลูก · ${DICE[1]} นับเป็นทุกเลข`;
+
+  // ลำดับตา (เฉพาะคนที่ยังมีเต๋า)
+  $('turnStrip').hidden = over;
+  $('turnStrip').innerHTML = L.order.filter((id) => L.counts[id] > 0).map((id) => {
+    const cls = [id === s.currentTurn && 'now'].filter(Boolean).join(' ');
+    return `<li class="${cls}">${esc(nameOf(id))}${id === s.me ? ' (ฉัน)' : ''} 🎲${L.counts[id]}</li>`;
+  }).join('');
+
+  // เต๋าของฉัน
+  const myCount = L.counts[s.me] || 0;
+  const showMine = peek || reveal || over;
+  const mine = L.myDice.map((d) => {
+    const hit = reveal && r && (d === r.f || d === 1);
+    return `<span class="die-face ${hit ? 'hit' : ''}">${DICE[d]}</span>`;
+  }).join('');
+  $('myCard').innerHTML = `<div class="mycard">
+    <div class="label"><span>🎲 เต๋าของ${esc(me ? me.name : '')} (${myCount} ลูก)</span><span>${me ? me.score : 0} แต้ม${isHost ? ' 👑' : ''}</span></div>
+    ${!L.inGame ? '<div class="hint">👀 คุณเข้ามากลางเกม — ดูไปก่อน รอเกมหน้า</div>'
+      : myCount === 0 ? '<div class="hint">☠️ เต๋าหมดแล้ว — ตกรอบ ดูเพื่อนเล่นต่อ</div>'
+      : `<div class="big dice-row ${showMine ? '' : 'blur'}">${mine}</div><div class="hint">${showMine ? 'ห้ามให้ใครเห็นนะ!' : '👆 แตะเพื่อดูเต๋าของคุณ'}</div>`}
+  </div>`;
+
+  // เดิมพันปัจจุบัน / ผลเปิดเต๋า
+  let box;
+  if (reveal || (over && r)) {
+    box = `<div class="lie-result ${r.bidTrue ? 'true' : 'false'}">
+      <div>${esc(nameOf(r.bidder))} ประกาศ <b>${r.q} × ${DICE[r.f]}</b></div>
+      <div class="big-num">มีจริง ${r.actual} ลูก</div>
+      <div>${r.bidTrue ? '✅ มีจริง!' : '🤥 โกหก!'} → <b>${esc(nameOf(r.loser))}</b> เสียเต๋า 1 ลูก${r.eliminated ? ' และตกรอบ ☠️' : ''}</div>
+    </div>`;
+  } else if (L.bid) {
+    box = `<div class="muted small-text">${esc(nameOf(L.bid.by))} ประกาศว่าทั้งโต๊ะมี</div><div class="big-num">${L.bid.q} × ${DICE[L.bid.f]}</div><div class="muted small-text">(นับรวม ${DICE[1]} ด้วย)</div>`;
+  } else {
+    box = `<div class="muted">ยังไม่มีใครประกาศ — ${esc(nameOf(s.currentTurn))} เริ่มก่อน</div>`;
+  }
+  $('lieBidBox').innerHTML = box;
+  $('lieBids').innerHTML = L.bids.map((b) => `<li>${esc(nameOf(b.by))}: ${b.q}×${DICE[b.f]}</li>`).join('');
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players
+    .filter((p) => p.id !== s.me)
+    .map((p) => {
+      const n = L.counts[p.id];
+      let status = n == null ? '👀 ดูอยู่' : n === 0 ? '☠️ ตกรอบ' : p.id === s.currentTurn ? '🤔 กำลังคิด' : '';
+      if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+      const dice = L.dice && L.dice[p.id]
+        ? `<div class="dice-row small">${L.dice[p.id].map((d) => `<span class="die-face ${r && (d === r.f || d === 1) ? 'hit' : ''}">${DICE[d]}</span>`).join('')}</div>`
+        : n > 0 ? `<div class="word">${'🎲'.repeat(n)}</div>` : '';
+      const cls = ['player', !p.connected && 'off', n === 0 && 'is-out', p.id === s.currentTurn && 'selected'].filter(Boolean).join(' ');
+      return `<div class="${cls}">
+        ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+        <span class="score">${p.score} แต้ม</span>
+        <div class="name">${esc(p.name)}</div>
+        ${dice}
+        <div class="status">${status}</div>
+      </div>`;
+    })
+    .join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่างจอ
+  const bar = $('lieBar');
+  bar.hidden = over;
+  if (over) return;
+  if (L.seq !== lieSeq) { lieSeq = L.seq; lieQ = L.minBid.q; lieF = L.minBid.f; }
+  if (!lieValid(lieQ, lieF) && myTurn) { lieQ = L.minBid.q; lieF = L.minBid.f; }
+  $('lieInfoText').textContent = reveal ? '⏳ อีกเดี๋ยวเริ่มรอบใหม่ (ทอยเต๋าใหม่)'
+    : myTurn ? (L.bid ? '🫵 ตาคุณ! ประกาศให้สูงกว่า หรือกด "โกหก!"' : '🫵 ตาคุณเริ่ม! ประกาศจำนวน × เลข')
+    : `⏳ รอ ${nameOf(s.currentTurn)}…`;
+  $('lieBidRow').hidden = !myTurn;
+  $('lieQ').textContent = lieQ;
+  for (const b of $('lieFaces').querySelectorAll('[data-f]')) b.classList.toggle('on', Number(b.dataset.f) === lieF);
+  $('lieBidBtn').disabled = !lieValid(lieQ, lieF);
+  $('lieBidBtn').textContent = `📣 ประกาศ ${lieQ} × ${DICE[lieF]}`;
+  $('lieCallBtn').hidden = !L.bid;
+}
+
+// ---------- Codenames ----------
+const TEAM = { red: '🟥 ทีมแดง', blue: '🟦 ทีมน้ำเงิน' };
+function renderCodenames(s, me, isHost) {
+  const c = s.cn;
+  const over = c.phase === 'over';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const myTurnTeam = c.myTeam === c.turn;
+  const canPick = !over && c.phase === 'guess' && myTurnTeam && !c.amSpymaster;
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('turnStrip').hidden = true;
+  $('myCard').innerHTML = '';
+  $('cnStage').hidden = false;
+
+  $('banner').textContent = over
+    ? (c.winner ? `🏆 ${TEAM[c.winner]} ชนะ!${c.reason === 'assassin' ? ' (อีกทีมเปิดเจอ 💀 นักฆ่า)' : ''}` : '🏁 จบเกม')
+    : c.phase === 'clue' ? `${TEAM[c.turn]} — รอ ${nameOf(c.spymaster[c.turn])} (หัวหน้า) ใบ้`
+    : `${TEAM[c.turn]} ใบ้: "${c.clue.word}" ${c.clue.num}`;
+  $('subBanner').hidden = false;
+  const role = c.myTeam ? `คุณอยู่ ${TEAM[c.myTeam]}${c.amSpymaster ? ' · 🕶️ หัวหน้า (เห็นสีทุกใบ)' : ''}` : '👀 คุณกำลังดู';
+  $('subBanner').innerHTML = `<span class="cn-score red">🟥 เหลือ ${c.remaining.red}</span> · <span class="cn-score blue">🟦 เหลือ ${c.remaining.blue}</span><br>${esc(role)}`;
+
+  // กระดาน
+  const html = c.cards.map((k, i) => {
+    const cls = ['cn-card', k.color ? `c-${k.color}` : '', k.revealed ? 'revealed' : '', canPick && !k.revealed ? 'pickable' : '', cnArmed === i ? 'armed' : ''].filter(Boolean).join(' ');
+    const label = cnArmed === i ? 'แตะอีกครั้ง' : esc(k.word);
+    return `<button type="button" class="${cls}" data-i="${i}" ${canPick && !k.revealed ? '' : 'tabindex="-1"'}>${k.revealed && k.color === 'assassin' ? '💀 ' : ''}${label}</button>`;
+  }).join('');
+  if ($('cnBoard').innerHTML !== html) $('cnBoard').innerHTML = html;
+  $('cnClues').innerHTML = c.clues.map((x) => `<li class="${x.team}">${TEAM[x.team]}: <b>${esc(x.word)}</b> ${x.num}</li>`).reverse().join('');
+
+  // รายชื่อทีม (แทนการ์ดผู้เล่น)
+  const teamCard = (t) => `<div class="card cn-team ${t} ${c.turn === t && !over ? 'turn' : ''} ${c.winner === t ? 'win' : ''}">
+    <h3>${TEAM[t]} <span class="muted small-text">เหลือ ${c.remaining[t]}</span></h3>
+    <ul>${c.teams[t].map((id) => {
+      const p = s.players.find((x) => x.id === id);
+      return `<li class="${p && !p.connected ? 'off' : ''}">${c.spymaster[t] === id ? '🕶️ ' : ''}${esc(nameOf(id))}${id === s.me ? ' (ฉัน)' : ''}${p && !p.connected ? ' 💤' : ''}</li>`;
+    }).join('')}</ul></div>`;
+  $('players').innerHTML = teamCard('red') + teamCard('blue');
+
+  // แถบล่างจอ
+  const bar = $('cnBar');
+  bar.hidden = over;
+  if (over) return;
+  const iGiveClue = c.phase === 'clue' && c.amSpymaster && myTurnTeam;
+  let info = '';
+  if (iGiveClue) info = '🕶️ ตาคุณใบ้! ดูการ์ดสีทีมคุณ แล้วใบ้ 1 คำ + จำนวนใบ';
+  else if (c.phase === 'clue') info = `⏳ รอ ${nameOf(c.spymaster[c.turn])} ใบ้…`;
+  else if (canPick) info = `👆 แตะการ์ด 2 ครั้งเพื่อเปิด · ทายได้อีก ${c.guessesLeft} ใบ`;
+  else if (c.amSpymaster && myTurnTeam) info = `👀 ลูกทีมกำลังเลือก… (ห้ามคุยนะ!) · เหลือ ${c.guessesLeft} ใบ`;
+  else info = `⏳ ${TEAM[c.turn]} กำลังเลือกการ์ด…`;
+  $('cnInfoText').textContent = info;
+  $('cnClueRow').hidden = !iGiveClue;
+  $('cnPassBtn').hidden = iGiveClue || (c.amSpymaster && myTurnTeam);
+  if (!$('cnPassBtn').dataset.armed) $('cnPassBtn').textContent = canPick ? '✅ จบตา' : '⏭️ ข้ามตา';
 }
 
 // ---------- วาดภาพทายคำ ----------
@@ -1307,6 +1534,14 @@ function feedItem(f) {
       if (f.reason === 'maxq') return `<li class="ok">🎙️ ครบ 20 คำถาม ไม่มีใครทายถูก — <b>${esc(f.name)}</b> (คนตอบ) +3 · คำคือ "${esc(f.word)}"</li>`;
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
+    case 'lie-call': return `<li class="${f.eliminated ? 'bad' : ''}">🤥 <b>${esc(f.challenger)}</b> ${f.auto ? '(หมดเวลา) ' : ''}ไม่เชื่อ ${esc(f.bidder)} (${f.q}×${['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][f.f]}) — มีจริง ${f.actual} → <b>${esc(f.loser)}</b> เสียเต๋า${f.eliminated ? ' ☠️ ตกรอบ' : ''}</li>`;
+    case 'lie-over': return f.winner ? `<li class="ok">🏆 <b>${esc(f.winner)}</b> ชนะเต๋าโกหก! (+5)${f.second ? ` · อันดับ 2 ${esc(f.second)} (+2)` : ''}</li>` : '<li class="muted">🏁 หัวห้องจบเกม</li>';
+    case 'cn-pick': {
+      const col = { red: '🟥', blue: '🟦', neutral: '⬜', assassin: '💀' }[f.color];
+      return `<li class="${f.color === f.team ? 'ok' : 'bad'}">${col} <b>${esc(f.name)}</b> เปิด "${esc(f.word)}"</li>`;
+    }
+    case 'cn-pass': return `<li class="muted">⏭️ ${f.team === 'red' ? '🟥 ทีมแดง' : '🟦 ทีมน้ำเงิน'} จบตา${f.name ? ` (${esc(f.name)})` : ' (หมดเวลา)'}</li>`;
+    case 'cn-over': return f.winner ? `<li class="ok">🏆 ${f.winner === 'red' ? '🟥 ทีมแดง' : '🟦 ทีมน้ำเงิน'} ชนะ! (+3 ทุกคนในทีม)</li>` : '<li class="muted">🏁 หัวห้องจบเกม</li>';
     case 'dr-correct': return `<li class="ok">🎉 <b>${esc(f.name)}</b> ทายถูกคนที่ ${f.order} (+${f.pts})</li>`;
     case 'dr-end': return `<li class="muted">🎨 ตาของ <b>${esc(f.name)}</b> จบ — คำคือ "${esc(f.word)}" (ทายถูก ${f.count} คน)</li>`;
     case 'dr-over': return '<li class="ok">🏁 วาดครบทุกคนแล้ว จบเกม!</li>';

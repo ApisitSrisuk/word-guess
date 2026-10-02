@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,16 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'draw') {
+  if (room.mode === 'liar') {
+    if (room.lie.phase === 'reveal') label = '🎲 เปิดเต๋า! ดูผลกัน';
+    else {
+      const cur = room.players.get(room.lieCurrent());
+      label = `🎲 ตาของ ${cur ? cur.name : '?'} — ประกาศหรือกด "โกหก!"`;
+    }
+  } else if (room.mode === 'codenames') {
+    const team = room.cn.turn === 'red' ? '🟥 ทีมแดง' : '🟦 ทีมน้ำเงิน';
+    label = `${team} ถึงตา — หัวหน้าใบ้ได้เลย (ลูกทีมคุยกันในนี้ได้)`;
+  } else if (room.mode === 'draw') {
     const d = room.players.get(room.dr.drawerId);
     label = `🎨 ตาของ ${d ? d.name : '?'} วาด — พิมพ์ทายได้เลย!`;
   } else if (room.mode === 'cheese') {
@@ -196,6 +205,10 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'liar') {
+            r.startLiar();
+          } else if (r.nextMode === 'codenames') {
+            r.startCodenames();
           } else if (r.nextMode === 'draw') {
             r.startDraw(data.category);
           } else if (r.nextMode === 'cheese') {
@@ -229,6 +242,19 @@ io.on('connection', (socket) => {
           }
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
+          break;
+        case 'bid':
+          r.lieBid(me.id, data.q, data.f);
+          break;
+        case 'liar':
+          r.lieChallenge(me.id);
+          out.result = r.lie.result;
+          break;
+        case 'cnClue':
+          r.cnGiveClue(me.id, data.word, data.num);
+          break;
+        case 'cnPick':
+          out.color = r.cnPick(me.id, data.index);
           break;
         case 'choose':
           r.drChoose(me.id, data.index);

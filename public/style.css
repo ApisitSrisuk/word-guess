@@ -372,3 +372,66 @@ body.night .banner { color: #ffd76a; }
 .draw-tools button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .draw-guesses { list-style: none; margin: 8px auto 0; padding: 0; max-width: min(100%, 62vh); font-size: .9rem; }
 .draw-guesses li { padding: 3px 8px; overflow-wrap: anywhere; }
+
+/* ---------- Codenames ---------- */
+:root { --red: #e03131; --blue: #1971c2; --red-soft: #ffe3e3; --blue-soft: #d0ebff; --neu: #e9e2d6; --neu-soft: #f3efe8; }
+@media (prefers-color-scheme: dark) { :root { --red-soft: #4a1d1d; --blue-soft: #14304d; --neu: #5a5248; --neu-soft: #3a332b; } }
+.cn-stage { margin-bottom: 14px; }
+.cn-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.cn-card {
+  min-height: 58px; padding: 6px 3px; border-radius: 10px; font-size: .82rem; line-height: 1.2; font-weight: 600;
+  background: var(--card); color: var(--ink); border: 2px solid var(--line); overflow-wrap: anywhere; cursor: default;
+}
+@media (min-width: 600px) { .cn-card { min-height: 70px; font-size: .95rem; } }
+.cn-card.pickable { cursor: pointer; border-color: var(--muted); }
+.cn-card.pickable:hover { border-color: var(--accent); }
+.cn-card.armed { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* หัวหน้าเห็นสีแบบจาง ๆ (ยังไม่เปิด) */
+.cn-card.c-red { border-color: var(--red); background: var(--red-soft); }
+.cn-card.c-blue { border-color: var(--blue); background: var(--blue-soft); }
+.cn-card.c-neutral { border-color: var(--neu); background: var(--neu-soft); }
+.cn-card.c-assassin { border-color: #000; background: #343a40; color: #fff; }
+/* เปิดแล้ว = สีเต็ม */
+.cn-card.revealed.c-red { background: var(--red); color: #fff; }
+.cn-card.revealed.c-blue { background: var(--blue); color: #fff; }
+.cn-card.revealed.c-neutral { background: var(--neu); color: var(--ink); opacity: .8; }
+.cn-card.revealed.c-assassin { background: #000; color: #fff; }
+.cn-card.revealed { text-decoration: line-through; text-decoration-thickness: 1px; }
+.cn-clues { list-style: none; margin: 10px 0 0; padding: 0; font-size: .9rem; display: flex; flex-wrap: wrap; gap: 6px; }
+.cn-clues li { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.cn-clues li.red { border-color: var(--red); }
+.cn-clues li.blue { border-color: var(--blue); }
+.cn-team { margin: 0; }
+.cn-team.red { border-top: 4px solid var(--red); }
+.cn-team.blue { border-top: 4px solid var(--blue); }
+.cn-team.turn { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.cn-team.win { border-color: var(--ok); }
+.cn-team ul { list-style: none; margin: 0; padding: 0; }
+.cn-team li { padding: 3px 0; overflow-wrap: anywhere; }
+.cn-team li.off { opacity: .5; }
+.cn-score.red { color: var(--red); font-weight: 700; }
+.cn-score.blue { color: var(--blue); font-weight: 700; }
+#cnNum { width: auto; min-width: 64px; margin: 0; }
+
+/* ---------- เต๋าโกหก ---------- */
+.lie-stage { margin-bottom: 14px; }
+.lie-bid { text-align: center; margin-bottom: 8px; }
+.lie-bid .big-num { font-size: 2.4rem; font-weight: 700; line-height: 1.2; }
+.lie-result.true .big-num { color: var(--ok); }
+.lie-result.false .big-num { color: var(--bad); }
+.lie-bids { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; font-size: .85rem; }
+.lie-bids li { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.dice-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.dice-row .die-face { font-size: 2.6rem; line-height: 1; }
+.dice-row.small .die-face { font-size: 1.5rem; }
+.die-face.hit { color: var(--accent); text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent); }
+.lie-pick { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 6px 0 8px; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper button { min-width: 44px; padding: 6px; font-size: 1.3rem; }
+.stepper b { min-width: 2ch; text-align: center; font-size: 1.5rem; }
+.lie-pick .times { font-size: 1.3rem; color: var(--muted); }
+.faces { display: flex; gap: 4px; }
+.faces .face { font-size: 1.7rem; padding: 0 8px; min-height: 48px; }
+.faces .face.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.lie-actions { display: grid !important; grid-template-columns: 1fr 1fr; }
+button.danger { background: var(--bad); color: #fff; }
