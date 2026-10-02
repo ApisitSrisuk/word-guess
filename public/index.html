@@ -17,7 +17,7 @@
     <!-- หน้าเข้าสู่ระบบ -->
     <section id="login" class="card">
       <h1>🎉 เกมปาร์ตี้กับเพื่อน</h1>
-      <p class="muted">🎯 ทายคำ · 🕵️ ใครคือสปาย · ❓ ทายคำตรงกลาง · 🧀 หัวขโมยชีส — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+      <p class="muted">🎯 ทายคำ · 🕵️ ใครคือสปาย · ❓ ทายคำตรงกลาง · 🧀 หัวขโมยชีส · 🎨 วาดภาพทายคำ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       <form id="loginForm">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" required /></label>
         <label>รหัสห้อง<input id="codeInput" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="เช่น PARTY1" required /></label>
@@ -48,6 +48,27 @@
       <div class="layout">
         <div class="col">
           <div id="myCard"></div>
+
+          <!-- วาดภาพทายคำ: กระดานวาด -->
+          <div id="drawStage" class="draw-stage" hidden>
+            <div id="drawHint" class="draw-hint"></div>
+            <div class="canvas-wrap">
+              <canvas id="drawCanvas" width="800" height="800" aria-label="กระดานวาดภาพ"></canvas>
+              <div id="drawOverlay" class="draw-overlay" hidden></div>
+            </div>
+            <div id="drawTools" class="draw-tools" hidden>
+              <div class="colors" id="drawColors"></div>
+              <div class="tool-row">
+                <button type="button" class="secondary small size on" data-size="0.008">●</button>
+                <button type="button" class="secondary small size" data-size="0.018">⬤</button>
+                <button type="button" class="secondary small size" data-size="0.04">⬤⬤</button>
+                <button type="button" class="secondary small" id="eraserBtn" title="ยางลบ">🧽</button>
+                <button type="button" class="secondary small" id="undoBtn" title="ย้อนกลับ">↩️</button>
+                <button type="button" class="secondary small" id="clearBtn" title="ล้างจอ">🗑️</button>
+              </div>
+            </div>
+            <ul id="drawGuesses" class="draw-guesses"></ul>
+          </div>
           <div id="players" class="players"></div>
 
           <div id="hostControls" class="card" hidden>
@@ -57,6 +78,7 @@
                 <button type="button" data-mode="undercover" role="radio">🕵️ ใครคือสปาย</button>
                 <button type="button" data-mode="center" role="radio">❓ ทายคำตรงกลาง</button>
                 <button type="button" data-mode="cheese" role="radio">🧀 หัวขโมยชีส</button>
+                <button type="button" data-mode="draw" role="radio">🎨 วาดภาพทายคำ</button>
               </div>
               <p id="modeHint" class="muted small-text"></p>
               <label id="categoryRow">หมวด
@@ -119,6 +141,18 @@
             <button id="gModeBtn" type="button" class="secondary">🎯 ทายเลย</button>
             <button id="passBtn" type="button" class="secondary" title="ส่งตาให้คนถัดไป">จบตา</button>
           </div>
+        </div>
+      </form>
+
+      <!-- แถบล่างจอของเกมวาดภาพทายคำ -->
+      <form id="drBar" class="guessbar" hidden>
+        <div class="wait-turn">
+          <span id="drInfoText"></span>
+          <button id="drSkipBtn" type="button" class="small" hidden>✅ จบตา</button>
+        </div>
+        <div id="drGuessRow" class="guess-row" hidden>
+          <input id="drInput" maxlength="40" autocomplete="off" autocorrect="off" enterkeyhint="send" placeholder="พิมพ์คำที่ทาย…" aria-label="คำที่ทาย" />
+          <button type="submit">ทาย!</button>
         </div>
       </form>
 

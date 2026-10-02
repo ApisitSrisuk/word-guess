@@ -6,7 +6,8 @@
 //     ตื่นคนเดียว = แอบดูเต๋าของเพื่อนได้ 1 คน / ตื่นหลายคน = เห็นกัน
 //     ขโมยขโมยชีสตอนตีของตัวเอง — ใครตื่นตีเดียวกันเห็นขโมย / ขโมยเลือกชวนผู้สมรู้ร่วมคิดได้ตอนนั้น
 // - ตอนเช้า: คุยกันแล้วโหวต — ขโมยได้โหวตมากสุด (รวมเสมอ) = หนูดีชนะ ไม่งั้นขโมยชนะ
-const HOUR_MS = Number(process.env.CHEESE_HOUR_MS) || 8000; // เวลาแต่ละตีตอนกลางคืน
+const HOUR_MS = Number(process.env.CHEESE_HOUR_MS) || 12000; // เวลาแต่ละตีตอนกลางคืน
+const LOOK_MS = Number(process.env.CHEESE_LOOK_MS) || 10000; // ทอยครบแล้ว ให้เวลาดู/จำเลขเต๋าก่อนเข้ากลางคืน
 const ROLL_MS = Number(process.env.CHEESE_ROLL_MS) || 15000; // เวลาทอยเต๋า (ไม่ทอย = ทอยให้อัตโนมัติ)
 const PTS = { mouse: 2, thief: 4, accomplice: 3 };
 
@@ -21,12 +22,13 @@ function install(Room, { shuffle }) {
     this.mode = 'cheese';
     this.uc = null;
     this.ct = null;
+    this.dr = null;
     this.state = 'playing';
     this.round += 1;
     this.feed = [];
     this.category = 'หัวขโมยชีส';
     this.ch = {
-      phase: 'roll', // roll → night → day → over
+      phase: 'roll', // roll → look (ดูเต๋า) → night → day → over
       ids,
       thiefId: shuffle(ids)[0],
       wantAccomplice: ids.length >= 6,
@@ -52,8 +54,15 @@ function install(Room, { shuffle }) {
     if (!(id in c.dice)) throw new Error('คุณไม่ได้อยู่ในเกมนี้');
     if (c.dice[id] != null) throw new Error('ทอยไปแล้ว');
     c.dice[id] = rollDie();
-    if (c.ids.every((x) => c.dice[x] != null)) this.chStartNight();
+    if (c.ids.every((x) => c.dice[x] != null)) this.chStartLook();
     return c.dice[id];
+  };
+
+  // ทอยครบ (หรือหมดเวลาทอย) → ช่วงดูเต๋า ให้ทุกคนจำเลขตัวเองก่อนเข้ากลางคืน
+  P.chStartLook = function () {
+    const c = this.ch;
+    for (const id of c.ids) if (c.dice[id] == null) c.dice[id] = rollDie(); // คนที่ไม่ได้ทอย ทอยให้
+    c.phase = 'look';
   };
 
   P.chStartNight = function () {
@@ -105,11 +114,13 @@ function install(Room, { shuffle }) {
   };
 
   P.chPeek = function (id, targetId) {
+    // คืนค่าเลขเต๋าที่แอบดู ให้คนดูเห็นทันที
     const c = this.ch;
     if (this.mode !== 'cheese' || c.phase !== 'night' || c.pending[id] !== 'peek') throw new Error('ตอนนี้คุณแอบดูไม่ได้');
     if (targetId === id || !(targetId in c.dice) || !this.players.has(targetId)) throw new Error('แอบดูคนนี้ไม่ได้');
     delete c.pending[id];
     c.memories[id].push(`ตี ${c.hour}: ตื่นคนเดียว แอบดูเต๋าของ ${nameOf(this, targetId)} = 🎲 ${c.dice[targetId]}`);
+    return c.dice[targetId];
   };
 
   P.chRecruit = function (id, targetId) {
@@ -179,7 +190,8 @@ function install(Room, { shuffle }) {
   // หมดเวลา: ช่วงทอย → ทอยให้ / กลางคืน → ตีถัดไป / กลางวัน → นับโหวต
   P.chTimeout = function () {
     const c = this.ch;
-    if (c.phase === 'roll') return this.chStartNight(), true;
+    if (c.phase === 'roll') return this.chStartLook(), true;
+    if (c.phase === 'look') return this.chStartNight(), true;
     if (c.phase === 'night') return this.chNextHour(), true;
     if (c.phase === 'day') {
       this.feed.push({ type: 'timeout', vote: true });
@@ -192,6 +204,7 @@ function install(Room, { shuffle }) {
   P.chTimerKey = function () {
     const c = this.ch;
     if (c.phase === 'roll') return `ch|${this.round}|roll`;
+    if (c.phase === 'look') return `ch|${this.round}|look`;
     if (c.phase === 'night') return `ch|${this.round}|night|${c.hour}`;
     if (c.phase === 'day') return this.turnLimit ? `ch|${this.round}|day` : null;
     return null;
@@ -200,6 +213,7 @@ function install(Room, { shuffle }) {
   P.chTimerMs = function () {
     const c = this.ch;
     if (c.phase === 'roll') return ROLL_MS;
+    if (c.phase === 'look') return LOOK_MS;
     if (c.phase === 'night') return HOUR_MS;
     // กลางวัน: เวลาคุย+โหวต = 2 เท่าของเวลาต่อตา (คุยกันหลายคน)
     return this.turnLimit * 2000;
@@ -219,7 +233,7 @@ function install(Room, { shuffle }) {
     for (const [v, t] of Object.entries(c.votes)) if (t === id) delete c.votes[v];
     if (c.phase === 'roll' && c.ids.filter((x) => x !== id && this.players.has(x)).every((x) => c.dice[x] != null)) {
       // ทุกคนที่เหลือทอยครบแล้ว
-      this.chStartNight();
+      this.chStartLook();
     } else if (c.phase === 'day') {
       this.chCheckVotes();
     }
@@ -258,4 +272,4 @@ function install(Room, { shuffle }) {
   };
 }
 
-module.exports = { install, HOUR_MS, ROLL_MS };
+module.exports = { install, HOUR_MS, ROLL_MS, LOOK_MS };

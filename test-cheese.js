@@ -33,9 +33,14 @@ const mem = (r, id) => r.ch.memories[id].join(' | ');
   assert.strictEqual(v.ch.myDie, null);
   assert.strictEqual(v.ch.dice, null, 'ไม่เห็นเต๋าคนอื่น');
   assert.strictEqual(v.ch.rolled.length, 1);
-  // หมดเวลาทอย → ทอยให้ แล้วเข้ากลางคืน
+  // หมดเวลาทอย → ทอยให้ → ช่วงดูเต๋า (มีเวลาจำเลข) → กลางคืน
+  r.timeoutTurn();
+  assert.strictEqual(r.ch.phase, 'look');
+  assert.ok(r.viewFor('p1').ch.myDie, 'ช่วงดูเต๋าเห็นเลขตัวเอง');
+  assert.strictEqual(r.timerMs(), 10000, 'ดูเต๋า 10 วินาที');
   r.timeoutTurn();
   assert.strictEqual(r.ch.phase, 'night');
+  assert.strictEqual(r.timerMs(), 12000, 'กลางคืนตีละ 12 วินาที');
   assert.ok(Object.values(r.ch.dice).every((x) => x >= 1 && x <= 6));
   // คนที่ไม่ใช่ขโมยไม่รู้ว่าใครเป็นขโมย
   const nonThief = r.ch.ids.find((id) => id !== r.ch.thiefId);
@@ -54,7 +59,7 @@ const mem = (r, id) => r.ch.memories[id].join(' | ');
   goto(r, 3);
   assert.strictEqual(r.viewFor('p2').ch.pending, 'peek');
   assert.throws(() => r.chPeek('p1', 'p0'), /แอบดูไม่ได้/);
-  r.chPeek('p2', 'p0');
+  assert.strictEqual(r.chPeek('p2', 'p0'), 5, 'แอบดูแล้วได้เลขทันที');
   assert.match(mem(r, 'p2'), /แอบดูเต๋าของ หนู0 = 🎲 5/);
   assert.throws(() => r.chPeek('p2', 'p1'), /แอบดูไม่ได้/, 'แอบดูได้ครั้งเดียว');
   goto(r, 5);
@@ -137,7 +142,7 @@ const mem = (r, id) => r.ch.memories[id].join(' | ');
   const r = setup([1, 2, 3, 4]);
   r.turnLimit = 0;
   assert.ok(r.timerKey(), 'กลางคืนต้องเดินเวลา');
-  assert.strictEqual(r.timerMs(), 8000);
+  assert.strictEqual(r.timerMs(), 12000);
   goto(r, 7);
   assert.strictEqual(r.timerKey(), null, 'ตอนเช้าไม่จับเวลาถ้าตั้งไม่จับ');
   r.turnLimit = 60;

@@ -351,3 +351,24 @@ body.night .banner { color: #ffd76a; }
 .ch-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 6px; }
 .night-log ul { margin: 0; padding-left: 18px; }
 .night-log li { margin-bottom: 4px; }
+
+/* ---------- วาดภาพทายคำ ---------- */
+.seg { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important; }
+.draw-stage { margin-bottom: 14px; }
+.draw-hint { text-align: center; margin-bottom: 8px; min-height: 1.6em; }
+.draw-hint .blanks { font-size: 1.3rem; letter-spacing: 2px; font-weight: 700; }
+.canvas-wrap { position: relative; width: 100%; max-width: min(100%, 62vh); margin: 0 auto; aspect-ratio: 1; }
+#drawCanvas { width: 100%; height: 100%; display: block; border-radius: 14px; border: 2px solid var(--line); background: #fff; touch-action: none; }
+#drawCanvas.can-draw { border-color: var(--accent); cursor: crosshair; }
+.draw-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; border-radius: 14px; background: rgba(20, 16, 12, .72); color: #fff; text-align: center; font-weight: 600; }
+.draw-overlay .choices { display: grid; gap: 10px; width: min(100%, 320px); }
+.draw-overlay .choices button { min-height: 56px; font-size: 1.15rem; }
+.reveal-word b { font-size: 2rem; }
+.draw-tools { max-width: min(100%, 62vh); margin: 8px auto 0; }
+.draw-tools .colors { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 8px; }
+.draw-tools .color { width: 34px; height: 34px; min-height: 34px; padding: 0; border-radius: 50%; border: 3px solid transparent; }
+.draw-tools .color.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--card); }
+.draw-tools .tool-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.draw-tools button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.draw-guesses { list-style: none; margin: 8px auto 0; padding: 0; max-width: min(100%, 62vh); font-size: .9rem; }
+.draw-guesses li { padding: 3px 8px; overflow-wrap: anywhere; }

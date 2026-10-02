@@ -46,6 +46,7 @@ class Room {
     this.uc = null;
     this.ct = null;
     this.ch = null; // หัวขโมยชีส
+    this.dr = null; // วาดภาพทายคำ
     this.nextMode = 'guess'; // เกมที่หัวห้องเลือกไว้สำหรับรอบหน้า (ทุกคนเห็น)
     // เกมทายคำ: ตาเรา = ถามใช่/ไม่ใช่เพื่อน 1 คน → เพื่อนตอบ → ทายคำของเพื่อนคนนั้น 1 ครั้ง (หรือทายเลยไม่ต้องถาม)
     this.gq = { phase: 'ask', targetId: null, turnNo: 0, qa: {} };
@@ -60,6 +61,7 @@ class Room {
   }
 
   chatKey() {
+    if (this.state === 'playing' && this.mode === 'draw') return `d|${this.round}|${this.dr.turnNo}`;
     if (this.state === 'playing' && this.mode === 'cheese') return `ch|${this.round}|${this.ch.phase}`;
     if (this.state === 'playing' && this.mode === 'center') return `c|${this.round}|${this.ct.turnNo}`;
     if (this.state === 'playing' && this.mode === 'guess') return `g|${this.round}|${this.gq.turnNo}`;
@@ -68,12 +70,14 @@ class Room {
 
   timerKey() {
     if (this.mode === 'cheese') return this.state === 'playing' ? this.chTimerKey() : null; // กลางคืนจับเวลาเสมอ
+    if (this.mode === 'draw') return this.state === 'playing' ? this.drTimerKey() : null;
     return this.turnLimit ? this.turnKey() : null;
   }
 
   // ระยะเวลาของตา/ช่วงปัจจุบัน (มิลลิวินาที)
   timerMs() {
     if (this.mode === 'cheese') return this.chTimerMs();
+    if (this.mode === 'draw') return this.drTimerMs();
     return this.turnLimit * 1000;
   }
 
@@ -81,6 +85,7 @@ class Room {
   turnKey() {
     if (this.state !== 'playing') return null;
     if (this.mode === 'cheese') return this.chTimerKey() || `ch|${this.round}|${this.ch.phase}`;
+    if (this.mode === 'draw') return `d|${this.round}|${this.dr.turnNo}|${this.dr.phase}`;
     if (this.mode === 'center') {
       const c = this.ct;
       return `c|${this.round}|${c.turnNo}|${c.phase}|${c.qa.length}|${this.ctCurrent()}`;
@@ -100,6 +105,7 @@ class Room {
     if (this.state !== 'playing') return false;
     if (this.mode === 'center') return this.ctPass(null, { timeout: true });
     if (this.mode === 'cheese') return this.chTimeout();
+    if (this.mode === 'draw') return this.drTimeout();
     if (this.mode === 'undercover') {
       const u = this.uc;
       if (u.phase === 'vote') {
@@ -200,6 +206,10 @@ class Room {
     if (this.mode === 'undercover') return this.ucAutoSkip();
     if (this.mode === 'center') return this.ctAutoSkip();
     if (this.mode === 'cheese') return false;
+    if (this.mode === 'draw') {
+      const d = this.players.get(this.drCurrent());
+      return d && !d.connected ? this.drPass(null) : false;
+    }
     const cur = this.players.get(this.currentTurnId());
     if (!cur || cur.connected) return false;
     const someoneCan = [...this.players.values()].some((p) => p.connected && this.hasTarget(p.id));
@@ -213,6 +223,7 @@ class Room {
     if (this.mode === 'undercover') return this.ucCurrent();
     if (this.mode === 'center') return this.ctCurrent();
     if (this.mode === 'cheese') return null;
+    if (this.mode === 'draw') return this.drCurrent();
     if (this.state === 'playing' && this.gq.phase === 'answer') return this.gq.targetId; // รอเพื่อนตอบ
     return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
   }
@@ -245,6 +256,7 @@ class Room {
     if (this.mode === 'undercover') return this.ucPass(id);
     if (this.mode === 'center') return this.ctPass(id);
     if (this.mode === 'cheese') return false;
+    if (this.mode === 'draw') return this.drPass(id);
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
@@ -259,7 +271,9 @@ class Room {
     if (!p) throw new Error('ไม่ได้อยู่ในห้อง');
     text = String(text || '').trim().slice(0, 200);
     if (!text) throw new Error('ข้อความว่าง');
-    const secret = this.mode === 'undercover'
+    const secret = this.mode === 'draw'
+      ? this.dr && this.dr.drawerId === id && this.dr.word
+      : this.mode === 'undercover'
       ? this.uc && this.uc.alive.includes(id) && this.ucWordFor(id)
       : this.mode === 'center'
         ? this.ct && this.ct.masterId === id && this.ct.word
@@ -298,6 +312,7 @@ class Room {
     if (!this.hostId) this.hostId = id;
     // เข้าห้องกลางรอบ → แจกคำที่ยังไม่มีใครใช้ให้ทันที (ใครคือสปาย: ดูไปก่อน รอเกมหน้า)
     if (this.state === 'playing' && this.mode === 'center') this.ctAddPlayer(id);
+    if (this.state === 'playing' && this.mode === 'draw') this.drAddPlayer(id);
     if (this.state === 'playing' && this.mode === 'guess') {
       this.assignWord(player);
       this.turnOrder.push(id); // ต่อท้ายคิว
@@ -319,6 +334,7 @@ class Room {
     if (this.mode === 'undercover') this.ucRemove(id);
     if (this.mode === 'center') this.ctRemove(id);
     if (this.mode === 'cheese') this.chRemove(id);
+    if (this.mode === 'draw') this.drRemove(id);
     this.players.delete(id);
     const idx = this.turnOrder.indexOf(id);
     if (idx !== -1) {
@@ -369,6 +385,7 @@ class Room {
     this.uc = null;
     this.ct = null;
     this.ch = null;
+    this.dr = null;
     this.round += 1;
     this.state = 'playing';
     this.feed = [];
@@ -411,6 +428,11 @@ class Room {
 
   endRound() {
     if (this.state !== 'playing') return;
+    if (this.mode === 'draw') {
+      this.drEndTurn('ended');
+      this.drFinishGame();
+      return;
+    }
     if (this.mode === 'cheese') {
       // หัวห้องจบเกมกลางคัน → เฉลย ไม่มีใครได้แต้ม
       this.ch.phase = 'over';
@@ -458,6 +480,7 @@ class Room {
       uc: uc ? this.ucView(id) : null,
       ct: this.mode === 'center' && this.ct ? this.ctView(id) : null,
       ch: this.mode === 'cheese' && this.ch ? this.chView(id) : null,
+      dr: this.mode === 'draw' && this.dr ? this.drView(id) : null,
       turnTotalMs: this.turnTotalMs || null,
       gq: this.mode === 'guess' ? { turnNo: this.gq.turnNo, phase: this.gq.phase, targetId: this.gq.targetId, asker: this.gAsker(), qa: this.gq.qa, answers: ANSWERS } : null,
       state: this.state,
@@ -490,5 +513,6 @@ class Room {
 require('./undercover').install(Room, { shuffle, normalize, parseEntry });
 require('./center').install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGORIES });
 require('./cheese').install(Room, { shuffle });
+require('./draw').install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGORIES });
 
 module.exports = { Room, CATEGORIES, TURN_LIMITS, normalize };

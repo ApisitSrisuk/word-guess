@@ -34,6 +34,7 @@ function install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGORIES }) {
     for (const p of players) { p.word = null; p.guessedBy = null; }
     this.mode = 'center';
     this.uc = null;
+    this.dr = null;
     this.state = 'playing';
     this.round += 1;
     this.feed = [];

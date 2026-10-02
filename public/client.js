@@ -13,7 +13,7 @@ function toast(msg, buzz) {
   $('toast').textContent = msg;
   $('toast').hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => ($('toast').hidden = true), 2200);
+  toastTimer = setTimeout(() => ($('toast').hidden = true), msg.startsWith('🔍') ? 5000 : 2200);
   if (buzz && navigator.vibrate) navigator.vibrate(buzz);
 }
 
@@ -250,7 +250,7 @@ function tickTimer() {
   const left = Math.max(0, turnDeadline - Date.now());
   const uc = state.mode === 'undercover' && state.uc;
   const ch = state.mode === 'cheese' && state.ch;
-  const what = ch ? { roll: 'เวลาทอย', night: `🌙 ตี ${ch.hour}`, day: 'เวลาคุย+โหวต' }[ch.phase] || ''
+  const what = ch ? { roll: 'เวลาทอย', look: 'ดูเต๋า', night: `🌙 ตี ${ch.hour}`, day: 'เวลาคุย+โหวต' }[ch.phase] || ''
     : uc && uc.phase === 'vote' ? 'เวลาโหวต' : 'เวลาตานี้';
   $('timerText').textContent = `⏱️ ${what} ${fmtTime(left)}`;
   $('timerFill').style.width = `${Math.min(100, (left / total) * 100)}%`;
@@ -410,11 +410,160 @@ $('chActions').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-target]');
   if (!b) return;
   const action = b.dataset.action;
-  act(b, action, { targetId: b.dataset.target }, action === 'recruit' ? `🤝 ชวน ${b.dataset.name} แล้ว` : null);
+  act(b, action, { targetId: b.dataset.target }, action === 'recruit' ? `🤝 ชวน ${b.dataset.name} แล้ว` : null).then((res) => {
+    if (action === 'peek' && res && res.die) toast(`🔍 ${b.dataset.name} ทอยได้ ${DIE[res.die]} ${res.die}`, [80, 40, 80]);
+  });
 });
 $('chCloseVote').addEventListener('click', () => {
   confirmTap($('chCloseVote'), 'แตะอีกครั้ง นับผลเลย', () => act($('chCloseVote'), 'closeVote'));
 });
+
+// ---------- วาดภาพทายคำ: กระดาน ----------
+const cv = $('drawCanvas');
+const cx = cv.getContext('2d');
+let strokes = []; // { id, c, w, p: [x, y, x, y, …] } พิกัด 0–1
+const COLORS = ['#1f1f1f', '#e03131', '#f08c00', '#fcc419', '#2f9e44', '#1971c2', '#9c36b5', '#8d6e63'];
+let penColor = COLORS[0];
+let penSize = 0.008;
+let erasing = false;
+const canDraw = () => state && state.mode === 'draw' && state.dr && state.dr.amDrawer && state.dr.phase === 'draw' && state.state === 'playing';
+
+function paintBg() {
+  cx.fillStyle = '#ffffff';
+  cx.fillRect(0, 0, cv.width, cv.height);
+}
+function paintStroke(st, from = 0) {
+  const W = cv.width;
+  cx.strokeStyle = st.c;
+  cx.fillStyle = st.c;
+  cx.lineWidth = st.w * W;
+  cx.lineCap = 'round';
+  cx.lineJoin = 'round';
+  const p = st.p;
+  if (p.length === 2 && from === 0) {
+    cx.beginPath();
+    cx.arc(p[0] * W, p[1] * W, (st.w * W) / 2, 0, Math.PI * 2);
+    cx.fill();
+    return;
+  }
+  const start = Math.max(0, from - 2);
+  cx.beginPath();
+  cx.moveTo(p[start] * W, p[start + 1] * W);
+  for (let i = start + 2; i < p.length; i += 2) cx.lineTo(p[i] * W, p[i + 1] * W);
+  cx.stroke();
+}
+function repaint() {
+  paintBg();
+  for (const st of strokes) paintStroke(st);
+}
+paintBg();
+
+// รับ/ใช้คำสั่งวาด (ทั้งของตัวเองและที่มาจากคนวาด)
+function applyDraw(op) {
+  if (op.op === 'sync') { strokes = (op.strokes || []).map((x) => ({ ...x, p: x.p.slice() })); repaint(); return; }
+  if (op.op === 'begin') { const st = { id: op.id, c: op.c, w: op.w, p: op.p.slice() }; strokes.push(st); paintStroke(st); return; }
+  if (op.op === 'pts') {
+    const st = strokes.find((x) => x.id === op.id);
+    if (!st) return;
+    const from = st.p.length;
+    st.p.push(...op.p);
+    paintStroke(st, from);
+    return;
+  }
+  if (op.op === 'undo') { strokes.pop(); repaint(); return; }
+  if (op.op === 'clear') { strokes = []; repaint(); }
+}
+socket.on('draw', applyDraw);
+function sendDraw(op) {
+  applyDraw(op);
+  socket.emit('draw', op);
+}
+
+// วาดด้วยนิ้ว/เมาส์ — ส่งจุดเป็นชุดทุก ~40ms
+let cur = null;
+let buf = [];
+const r3 = (n) => Math.round(Math.min(1, Math.max(0, n)) * 1000) / 1000;
+function pos(e) {
+  const b = cv.getBoundingClientRect();
+  return [r3((e.clientX - b.left) / b.width), r3((e.clientY - b.top) / b.height)];
+}
+function flush() {
+  if (cur && buf.length) {
+    sendDraw({ op: 'pts', id: cur, p: buf });
+    buf = [];
+  }
+}
+setInterval(flush, 40);
+cv.addEventListener('pointerdown', (e) => {
+  if (!canDraw()) return;
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  cur = Math.random().toString(36).slice(2, 10);
+  buf = [];
+  sendDraw({ op: 'begin', id: cur, c: erasing ? '#ffffff' : penColor, w: erasing ? Math.max(penSize, 0.04) : penSize, p: pos(e) });
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!cur || !canDraw()) return;
+  e.preventDefault();
+  const [x, y] = pos(e);
+  buf.push(x, y);
+  if (buf.length >= 200) flush();
+});
+const endStroke = () => { flush(); cur = null; };
+cv.addEventListener('pointerup', endStroke);
+cv.addEventListener('pointercancel', endStroke);
+
+// เครื่องมือ
+$('drawColors').innerHTML = COLORS.map((c, i) => `<button type="button" class="color ${i ? '' : 'on'}" data-c="${c}" style="background:${c}" aria-label="สี ${c}"></button>`).join('');
+$('drawColors').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]');
+  if (!b) return;
+  penColor = b.dataset.c;
+  erasing = false;
+  document.querySelectorAll('#drawColors .color').forEach((x) => x.classList.toggle('on', x === b));
+  $('eraserBtn').classList.remove('on');
+});
+document.querySelectorAll('#drawTools .size').forEach((b) => b.addEventListener('click', () => {
+  penSize = Number(b.dataset.size);
+  document.querySelectorAll('#drawTools .size').forEach((x) => x.classList.toggle('on', x === b));
+}));
+$('eraserBtn').addEventListener('click', () => {
+  erasing = !erasing;
+  $('eraserBtn').classList.toggle('on', erasing);
+});
+$('undoBtn').addEventListener('click', () => canDraw() && sendDraw({ op: 'undo' }));
+$('clearBtn').addEventListener('click', () => canDraw() && confirmTap($('clearBtn'), 'ล้าง?', () => sendDraw({ op: 'clear' })));
+
+// เลือกคำ / ทาย / จบตา
+$('drawOverlay').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-choice]');
+  if (b) act(b, 'choose', { index: Number(b.dataset.choice) });
+});
+$('drBar').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = $('drInput').value.trim();
+  if (!text) return;
+  api('chat', { text }).then((res) => {
+    if (res.error) toast(`⚠️ ${res.error}`, 150);
+    else if (res.correct) toast('🎉 ถูกต้อง!', [60, 40, 60, 40, 120]);
+  });
+  $('drInput').value = '';
+});
+$('drSkipBtn').addEventListener('click', () => {
+  const d = state.dr;
+  if (d.amDrawer) return act($('drSkipBtn'), 'pass', { turnId: state.currentTurn }, '✅ จบตาแล้ว');
+  const turnId = state.currentTurn;
+  confirmTap($('drSkipBtn'), 'แตะอีกครั้ง จบตา', () => act($('drSkipBtn'), 'pass', { turnId }, '✅ จบตาแล้ว'));
+});
+
+// คำทายล่าสุดใต้ภาพ (ดึงจากแชท)
+function renderDrawGuesses() {
+  if (!state || state.mode !== 'draw') return;
+  const last = chatMsgs.slice(-6);
+  $('drawGuesses').innerHTML = last.map((m) => m.system
+    ? `<li class="${/ทายถูก/.test(m.text) ? 'ok' : 'muted'}">${esc(m.text)}</li>`
+    : `<li><b>${esc(m.name)}:</b> ${esc(m.text)}</li>`).join('');
+}
 
 // ---------- แชท ----------
 let chatOpen = false;
@@ -452,6 +601,7 @@ function addChatMsg(m) {
   const nearBottom = $('chatList').scrollHeight - $('chatList').scrollTop - $('chatList').clientHeight < 80;
   $('chatList').append(renderChatMsg(m));
   if (nearBottom || !chatVisible()) scrollChat();
+  renderDrawGuesses();
   const fromMe = session && m.name === session.name;
   if (!chatVisible() && !m.system && !fromMe) {
     setUnread(unread + 1);
@@ -463,6 +613,7 @@ function addChatMsg(m) {
 function clearChatList() {
   chatMsgs.length = 0;
   $('chatList').replaceChildren();
+  $('drawGuesses').replaceChildren();
   setUnread(0);
 }
 
@@ -566,10 +717,11 @@ function renderLeaderboard(s) {
   $('lbCard').classList.toggle('spotlight', s.state === 'reveal');
 }
 
-const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส' };
+const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ' };
 const MODE_HINT = {
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
+  draw: 'ผลัดกันวาด คนวาดเลือกคำจาก 3 ตัวเลือก คนอื่นพิมพ์ทายแข่งกัน ยิ่งถูกเร็วยิ่งได้แต้มเยอะ (เวลาวาด = เวลาต่อตา)',
   cheese: 'ทอยเต๋าลับ กลางคืนใครทอยได้เลขไหนตื่นตีนั้น 1 คนเป็นหัวขโมย ตอนเช้าคุยกันแล้วโหวตจับขโมย (3 คนขึ้นไป)',
   center: 'สุ่ม 1 คนเป็นคนตอบ (เห็นคำลับคนเดียว) ที่เหลือผลัดกันถามใช่/ไม่ใช่ แล้วแข่งกันทายให้ถูกก่อน (ถามได้ 20 ข้อ)',
 };
@@ -582,6 +734,7 @@ function render() {
   const ucMode = s.mode === 'undercover' && s.uc && s.state !== 'lobby';
   const ctMode = s.mode === 'center' && s.ct && s.state !== 'lobby';
   const chMode = s.mode === 'cheese' && s.ch && s.state !== 'lobby';
+  const drMode = s.mode === 'draw' && s.dr && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -601,7 +754,10 @@ function render() {
 
   $('ctBar').hidden = true;
   $('chBar').hidden = true;
-  if (chMode) renderCheese(s, me, isHost);
+  $('drBar').hidden = true;
+  $('drawStage').hidden = true;
+  if (drMode) renderDraw(s, me, isHost);
+  else if (chMode) renderCheese(s, me, isHost);
   else if (ctMode) renderCenter(s, me, isHost, turnPlayer);
   else if (ucMode) renderUndercover(s, me, isHost, turnPlayer);
   else renderGuess(s, me, isHost, turnPlayer);
@@ -629,7 +785,7 @@ function renderHost(s, isHost) {
   $('modeHint').textContent = MODE_HINT[s.nextMode];
   $('categoryRow').hidden = s.nextMode === 'undercover' || s.nextMode === 'cheese';
   $('whiteRow').hidden = s.nextMode !== 'undercover';
-  $('startBtn').textContent = s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
+  $('startBtn').textContent = s.nextMode === 'draw' ? '🎨 เริ่มวาดภาพทายคำ' : s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
   const sel = $('categorySelect');
   if (sel.options.length === 0) {
     sel.innerHTML = '<option value="random">🎲 สุ่มหมวด</option>' +
@@ -844,6 +1000,85 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
 }
 
+// ---------- วาดภาพทายคำ ----------
+function renderDraw(s, me, isHost) {
+  const d = s.dr;
+  const over = d.phase === 'over';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const drawer = nameOf(d.drawerId);
+  const iGuessed = d.guessed.includes(s.me);
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('turnStrip').hidden = true;
+
+  $('banner').textContent = {
+    choose: d.amDrawer ? '🎨 ตาคุณวาด! เลือกคำ' : `⏳ ${drawer} กำลังเลือกคำ…`,
+    draw: d.amDrawer ? `🎨 วาดคำว่า "${d.word}"` : `🎨 ${drawer} กำลังวาด`,
+    reveal: `✅ คำคือ "${d.word}"`,
+    over: '🏁 จบเกม! ดูอันดับได้เลย',
+  }[d.phase];
+  $('subBanner').hidden = over;
+  $('subBanner').innerHTML = `คนวาด ${Math.min(d.drawn + 1, d.total)}/${d.total} · หมวด ${esc(d.category || '')} · ทายถูกแล้ว ${d.guessed.length} คน`;
+  $('myCard').innerHTML = '';
+
+  // กระดาน + ใบ้
+  $('drawStage').hidden = over;
+  const blanks = d.wordLen ? Array(d.wordLen).fill('＿').join(' ') : '';
+  $('drawHint').innerHTML = d.phase === 'draw'
+    ? (d.amDrawer ? `วาดให้เพื่อนทาย — ห้ามเขียนตัวหนังสือ! <b>${esc(d.word)}</b>`
+      : iGuessed ? `✅ คุณทายถูก! คำคือ <b>${esc(d.word)}</b>`
+      : `<span class="blanks">${blanks}</span> <span class="muted">(${d.wordLen} ตัว · หมวด ${esc(d.category)})</span>`)
+    : d.phase === 'reveal' ? `คำคือ <b>${esc(d.word)}</b> — ทายถูก ${d.guessed.length} คน` : '';
+  const ov = $('drawOverlay');
+  let ovHtml = '';
+  if (d.phase === 'choose') {
+    ovHtml = d.amDrawer
+      ? `<p>เลือกคำที่จะวาด</p><div class="choices">${d.choices.map((w, i) => `<button type="button" data-choice="${i}">${esc(w)}</button>`).join('')}</div>`
+      : `<p>⏳ ${esc(drawer)} กำลังเลือกคำ…</p>`;
+  } else if (d.phase === 'reveal') {
+    ovHtml = `<p class="reveal-word">คำคือ<br><b>${esc(d.word)}</b></p>`;
+  }
+  ov.hidden = !ovHtml;
+  if (ov.innerHTML !== ovHtml) ov.innerHTML = ovHtml;
+  $('drawTools').hidden = !canDraw();
+  cv.classList.toggle('can-draw', canDraw());
+  renderDrawGuesses();
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players
+    .filter((p) => p.id !== s.me)
+    .map((p) => {
+      let status = '';
+      const k = d.guessed.indexOf(p.id);
+      if (p.id === d.drawerId) status = d.phase === 'choose' ? '🎨 เลือกคำ' : '🎨 กำลังวาด';
+      else if (k >= 0) status = `✅ ถูกคนที่ ${k + 1}`;
+      else if (d.phase === 'draw') status = '🤔 กำลังทาย';
+      if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+      const cls = ['player', !p.connected && 'off', p.id === d.drawerId && 'role-master', k >= 0 && 'awake'].filter(Boolean).join(' ');
+      return `<div class="${cls}" data-id="${esc(p.id)}">
+        ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+        <span class="score">${p.score} แต้ม</span>
+        <div class="name">${esc(p.name)}</div>
+        <div class="status">${status}</div>
+      </div>`;
+    })
+    .join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่างจอ
+  const bar = $('drBar');
+  bar.hidden = over;
+  if (over) return;
+  const guessing = d.phase === 'draw' && !d.amDrawer && !iGuessed;
+  let info = '';
+  if (d.phase === 'choose') info = d.amDrawer ? '👆 เลือกคำบนกระดาน' : `⏳ รอ ${drawer} เลือกคำ`;
+  else if (d.phase === 'draw') info = d.amDrawer ? '✏️ วาดบนกระดานเลย' : iGuessed ? '✅ ทายถูกแล้ว! รอคนอื่น (คุยได้ แต่ห้ามบอกคำ)' : '';
+  else if (d.phase === 'reveal') info = '⏳ ไปคนวาดคนถัดไป…';
+  $('drInfoText').textContent = info;
+  $('drGuessRow').hidden = !guessing;
+  $('drSkipBtn').hidden = !(d.phase === 'draw' || d.phase === 'choose');
+  if (!$('drSkipBtn').dataset.armed) $('drSkipBtn').textContent = d.amDrawer ? '✅ จบตา' : `✅ จบตา ${drawer}`;
+}
+
 // ---------- หัวขโมยชีส ----------
 const DIE = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 function renderCheese(s, me, isHost) {
@@ -856,6 +1091,7 @@ function renderCheese(s, me, isHost) {
 
   $('banner').textContent = {
     roll: '🎲 ทอยเต๋าลับ — อย่าให้ใครเห็นนะ!',
+    look: ch.myDie ? `👀 จำไว้! คืนนี้คุณจะตื่นตอนตี ${ch.myDie}` : '👀 ทุกคนกำลังจำเลขเต๋า…',
     night: `🌙 กลางคืน · ตี ${ch.hour}`,
     day: '☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย?',
     over: { mice: '🐭 หนูดีจับขโมยได้!', thief: `🐀 ${nameOf(ch.thiefId)} ขโมยสำเร็จ!` }[ch.winner] || '🏁 จบเกม',
@@ -863,6 +1099,7 @@ function renderCheese(s, me, isHost) {
   $('subBanner').hidden = false;
   $('subBanner').innerHTML = {
     roll: `ทอยแล้ว ${ch.rolled.length}/${ch.ids.length} คน`,
+    look: 'อีกเดี๋ยวเข้ากลางคืน 🌙',
     night: `<span class="clock">${[1, 2, 3, 4, 5, 6].map((h) => `<i class="${h === ch.hour ? 'now' : h < ch.hour ? 'past' : ''}">${h}</i>`).join('')}</span>`,
     day: `คุยกันในแชท แล้วแตะการ์ดคนที่คิดว่าเป็นขโมย · โหวตแล้ว ${ch.voted.length}/${ch.voters}`,
     over: `หัวขโมยคือ <b>${esc(nameOf(ch.thiefId))}</b>${ch.accompliceId ? ` · ผู้สมรู้ร่วมคิด <b>${esc(nameOf(ch.accompliceId))}</b>` : ''}`,
@@ -873,7 +1110,7 @@ function renderCheese(s, me, isHost) {
   if (ch.amThief) role = `🐀 คุณคือหัวขโมย! คุณขโมยชีสตอนตี ${ch.myDie || '?'}${ch.wantAccomplice ? ' (ชวนผู้สมรู้ร่วมคิดได้ 1 คน)' : ''}`;
   else if (ch.amAccomplice) role = `🤝 คุณเป็นผู้สมรู้ร่วมคิดของ ${esc(nameOf(ch.thiefId))} — ช่วยให้ขโมยรอด`;
   if (!ch.inGame) role = '👀 คุณเข้ามากลางเกม — ดูไปก่อน รอเกมหน้า';
-  const showDie = peek || over;
+  const showDie = peek || over || ch.phase === 'look';
   const die = ch.myDie
     ? `<div class="big die ${showDie ? '' : 'blur'}">${DIE[ch.myDie]} ${ch.myDie}</div>`
     : ch.inGame ? '<div class="big die">🎲 ?</div>' : '';
@@ -896,6 +1133,7 @@ function renderCheese(s, me, isHost) {
       let status = '';
       if (!inGame) status = '👀 ดูอยู่';
       else if (ch.phase === 'roll') status = ch.rolled.includes(p.id) ? '🎲 ทอยแล้ว' : '…ยังไม่ทอย';
+      else if (ch.phase === 'look') status = '👀 กำลังจำเลข';
       else if (ch.phase === 'night') status = ch.awakeWith.includes(p.id) ? '👀 ตื่นอยู่กับคุณ' : '😴';
       else if (ch.phase === 'day') status = ch.voted.includes(p.id) ? '✓ โหวตแล้ว' : '…ยังไม่โหวต';
       else if (over) status = p.id === ch.thiefId ? '🐀 หัวขโมย' : p.id === ch.accompliceId ? '🤝 ผู้สมรู้ร่วมคิด' : '🐭 หนูดี';
@@ -932,6 +1170,8 @@ function renderCheese(s, me, isHost) {
   let actions = '';
   if (ch.phase === 'roll') {
     info = myRolled ? `🎲 ทอยแล้ว! รอเพื่อน (${ch.rolled.length}/${ch.ids.length})` : '🎲 กดทอยเต๋า — เลขที่ได้คือเวลาที่คุณจะตื่นตอนกลางคืน';
+  } else if (ch.phase === 'look') {
+    info = ch.myDie ? `🎲 คุณได้ ${ch.myDie} — คืนนี้ตื่นตอนตี ${ch.myDie} (อย่าบอกใคร!)` : '';
   } else if (ch.phase === 'night') {
     const others = ch.ids.filter((id) => id !== s.me && s.players.some((p) => p.id === id));
     if (ch.pending === 'peek') {
@@ -1067,6 +1307,9 @@ function feedItem(f) {
       if (f.reason === 'maxq') return `<li class="ok">🎙️ ครบ 20 คำถาม ไม่มีใครทายถูก — <b>${esc(f.name)}</b> (คนตอบ) +3 · คำคือ "${esc(f.word)}"</li>`;
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
+    case 'dr-correct': return `<li class="ok">🎉 <b>${esc(f.name)}</b> ทายถูกคนที่ ${f.order} (+${f.pts})</li>`;
+    case 'dr-end': return `<li class="muted">🎨 ตาของ <b>${esc(f.name)}</b> จบ — คำคือ "${esc(f.word)}" (ทายถูก ${f.count} คน)</li>`;
+    case 'dr-over': return '<li class="ok">🏁 วาดครบทุกคนแล้ว จบเกม!</li>';
     case 'ch-over': return f.winner
       ? `<li class="ok">${f.winner === 'mice' ? '🐭 หนูดีชนะ! จับ' : '🐀 ขโมยชนะ!'} <b>${esc(f.thief)}</b>${f.winner === 'mice' ? ' ได้ (+2)' : ' รอด (+4)'}${f.accomplice ? ` · ผู้สมรู้ร่วมคิด: ${esc(f.accomplice)}` : ''}</li>`
       : '<li class="muted">🏁 หัวห้องจบเกม</li>';

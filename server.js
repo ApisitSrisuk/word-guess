@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,8 +52,11 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'cheese') {
-    label = { roll: '🎲 ทอยเต๋าลับกันก่อน — อย่าบอกใครนะ!', night: '🌙 กลางคืนแล้ว… ทุกคนหลับ ห้ามคุย 🤫', day: '☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย? คุยกันแล้วโหวต' }[room.ch.phase];
+  if (room.mode === 'draw') {
+    const d = room.players.get(room.dr.drawerId);
+    label = `🎨 ตาของ ${d ? d.name : '?'} วาด — พิมพ์ทายได้เลย!`;
+  } else if (room.mode === 'cheese') {
+    label = { roll: '🎲 ทอยเต๋าลับกันก่อน — อย่าบอกใครนะ!', look: '👀 จำเลขเต๋าของตัวเองไว้ — อีกเดี๋ยวเข้ากลางคืน', night: '🌙 กลางคืนแล้ว… ทุกคนหลับ ห้ามคุย 🤫', day: '☀️ เช้าแล้ว! ชีสหายไป 🧀 ใครขโมย? คุยกันแล้วโหวต' }[room.ch.phase];
     if (!label) return;
   } else if (room.mode === 'center') {
     const cur = room.players.get(room.ctAsker());
@@ -68,7 +71,16 @@ function syncTurn(room) {
   sendChat(room, room.systemChat(label));
 }
 
+// ตาวาดใหม่ → ล้างภาพบนจอทุกคน
+function syncCanvas(room) {
+  const key = room.mode === 'draw' && room.dr ? `${room.round}|${room.dr.turnNo}` : null;
+  if (key === room._canvasKey) return;
+  room._canvasKey = key;
+  if (key) io.to(room.code).emit('draw', { op: 'sync', strokes: [] });
+}
+
 function broadcast(room) {
+  syncCanvas(room);
   syncTurn(room);
   syncTimer(room);
   for (const p of room.players.values()) {
@@ -165,6 +177,8 @@ io.on('connection', (socket) => {
     me = p;
     socket.join(code);
     ack({ ok: true, view: r.viewFor(p.id), chat: r.chat });
+    // เข้ามากลางตาวาด → ส่งภาพที่วาดไปแล้วให้
+    if (r.mode === 'draw' && r.dr) socket.emit('draw', { op: 'sync', strokes: r.dr.strokes });
     broadcast(r);
   });
 
@@ -182,6 +196,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'draw') {
+            r.startDraw(data.category);
           } else if (r.nextMode === 'cheese') {
             r.startCheese();
           } else if (r.nextMode === 'center') {
@@ -214,11 +230,14 @@ io.on('connection', (socket) => {
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
           break;
+        case 'choose':
+          r.drChoose(me.id, data.index);
+          break;
         case 'roll':
           out.die = r.chRoll(me.id);
           break;
         case 'peek':
-          r.chPeek(me.id, String(data.targetId || ''));
+          out.die = r.chPeek(me.id, String(data.targetId || ''));
           break;
         case 'recruit':
           r.chRecruit(me.id, String(data.targetId || ''));
@@ -254,6 +273,15 @@ io.on('connection', (socket) => {
         case 'chat': {
           const now = Date.now();
           if (now - (me.lastChatAt || 0) < CHAT_GAP_MS) throw new GameError('พิมพ์เร็วไปนิด ใจเย็น ๆ 😅');
+          if (r.mode === 'draw') {
+            const hit = r.drGuess(me.id, String(data.text || ''));
+            if (hit) {
+              me.lastChatAt = now;
+              sendChat(r, r.systemChat(`🎉 ${me.name} ทายถูก!`));
+              out.correct = true;
+              break; // สถานะเกมเปลี่ยน → broadcast ด้านล่าง
+            }
+          }
           const msg = r.addChat(me.id, data.text);
           me.lastChatAt = now;
           sendChat(r, msg);
@@ -268,6 +296,12 @@ io.on('connection', (socket) => {
     ack(out);
     broadcast(r);
     scheduleAwaySkip(r);
+  });
+
+  // เส้นที่คนวาดกำลังวาด → ส่งต่อให้ทุกคนในห้องแบบสด
+  socket.on('draw', (op) => {
+    if (!room || !me || !room.drStroke || room.mode !== 'draw') return;
+    if (room.drStroke(me.id, op)) socket.to(room.code).emit('draw', op);
   });
 
   // ออกจากห้องเอง → เอาออกทันที (ไม่ต้องรอ 10 นาที)
