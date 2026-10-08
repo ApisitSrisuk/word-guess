@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,16 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'timeline') {
+  if (room.mode === 'poker') {
+    label = `🃏 มือที่ ${room.pk.handNo} — แจกไพ่แล้ว! 😺`;
+  } else if (room.mode === 'sheriff') {
+    const sh = room.players.get(room.shSheriff());
+    if (room.sh.phase === 'pack') label = `🧳 รอบ ${room.sh.roundNo}: พ่อค้าแพ็กกระเป๋า — ผู้ตรวจการคือ ${sh ? sh.name : '?'}`;
+    else {
+      const m = room.players.get(room.shCurrentMerchant());
+      label = `👮 ตรวจกระเป๋าของ ${m ? m.name : '?'} — อ้อน/ต่อรองได้เลย!`;
+    }
+  } else if (room.mode === 'timeline') {
     const cur = room.players.get(room.tl.order[room.tl.idx]);
     label = `📅 ตาของ ${cur ? cur.name : '?'} — วางเหตุการณ์ลงไทม์ไลน์`;
   } else if (room.mode === 'liar') {
@@ -208,6 +217,10 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'poker') {
+            r.startPoker();
+          } else if (r.nextMode === 'sheriff') {
+            r.startSheriff();
           } else if (r.nextMode === 'timeline') {
             r.startTimeline();
           } else if (r.nextMode === 'liar') {
@@ -247,6 +260,16 @@ io.on('connection', (socket) => {
           }
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
+          break;
+        case 'pkAct':
+          r.pkAct(me.id, String(data.move || ''), data.to);
+          break;
+        case 'shPack':
+          r.shPack(me.id, data.cardIds, data.declare, data.bribe);
+          break;
+        case 'shDecide':
+          r.shDecide(me.id, data.choice);
+          out.last = r.sh.last;
           break;
         case 'tlPlace': {
           const res = r.tlPlace(me.id, data.cardId, data.slot);

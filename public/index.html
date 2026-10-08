@@ -106,6 +106,12 @@
             <p id="hostError" class="error"></p>
           </div>
 
+          <!-- โป๊กเกอร์: โต๊ะ (ไพ่กลาง + กองเงิน + ผล) -->
+          <div id="pkStage" class="pk-stage" hidden></div>
+
+          <!-- ผู้ตรวจการ: กระเป๋าของพ่อค้า / ผลการตรวจ -->
+          <div id="shStage" class="sh-stage" hidden></div>
+
           <!-- Timeline: ไทม์ไลน์กลาง -->
           <div id="tlStage" class="tl-stage" hidden>
             <ol id="tlLine" class="tl-line"></ol>
@@ -185,6 +191,64 @@
           </div>
         </div>
       </form>
+
+      <!-- แถบล่างจอของโป๊กเกอร์: ไพ่ในมือ + มือไพ่ + ปุ่มเดิมพัน -->
+      <div id="pkBar" class="guessbar" hidden>
+        <div class="pk-me">
+          <div id="pkHole" class="pk-hole"></div>
+          <div class="pk-me-info">
+            <div id="pkHandName" class="pk-hand-name"></div>
+            <div id="pkDraws" class="pk-draws"></div>
+            <div id="pkInfoText" class="muted small-text"></div>
+          </div>
+        </div>
+        <div id="pkActions" class="pk-actions" hidden>
+          <div class="row pk-main">
+            <button type="button" id="pkFold" class="secondary">🙅 หมอบ</button>
+            <button type="button" id="pkCall">✅ ผ่าน</button>
+            <button type="button" id="pkRaiseToggle" class="secondary">⬆️ เพิ่ม</button>
+          </div>
+          <div id="pkRaiseRow" class="pk-raise" hidden>
+            <div class="row pk-quick">
+              <button type="button" class="secondary small" data-q="min">ขั้นต่ำ</button>
+              <button type="button" class="secondary small" data-q="half">½ กอง</button>
+              <button type="button" class="secondary small" data-q="pot">เต็มกอง</button>
+              <button type="button" class="secondary small" data-q="all">หมดหน้าตัก</button>
+            </div>
+            <div class="stepper">
+              <button type="button" class="secondary" id="pkMinus" aria-label="ลด">−</button>
+              <b id="pkRaiseAmt">0</b>
+              <button type="button" class="secondary" id="pkPlus" aria-label="เพิ่ม">+</button>
+            </div>
+            <button type="button" id="pkRaiseBtn" class="big-btn">⬆️ เพิ่มเป็น 0</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- แถบล่างจอของเกมผู้ตรวจการ: ไพ่ในมือ + แพ็กกระเป๋า / ตัดสิน -->
+      <div id="shBar" class="guessbar" hidden>
+        <div class="wait-turn"><span id="shInfoText"></span></div>
+        <div id="shHand" class="hand-fan"></div>
+        <div id="shPackRow" hidden>
+          <div class="sh-declare">
+            <span>ประกาศว่าเป็น</span>
+            <div id="shDeclare" class="faces"></div>
+          </div>
+          <div class="sh-bribe">
+            <span>💰 สินบน</span>
+            <div class="stepper">
+              <button type="button" class="secondary" id="shBribeMinus" aria-label="ลดสินบน">−</button>
+              <b id="shBribe">0</b>
+              <button type="button" class="secondary" id="shBribePlus" aria-label="เพิ่มสินบน">+</button>
+            </div>
+          </div>
+          <button type="button" id="shPackBtn" class="big-btn">🧳 ส่งกระเป๋า</button>
+        </div>
+        <div id="shDecideRow" class="row lie-actions" hidden>
+          <button type="button" id="shPassBtn" class="secondary">✅ ปล่อยผ่าน</button>
+          <button type="button" id="shInspectBtn" class="danger">🔍 เปิดตรวจ</button>
+        </div>
+      </div>
 
       <!-- แถบล่างจอของเกม Timeline: การ์ดในมือ -->
       <div id="tlBar" class="guessbar" hidden>

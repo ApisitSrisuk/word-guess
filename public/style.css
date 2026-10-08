@@ -611,3 +611,104 @@ body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--
   .toast.pop, .confetti span, .login-card { animation: none !important; }
 }
 .confetti span { width: 8px; height: 12px; border-radius: 2px; opacity: .85; }
+
+/* ---------- ไพ่ในมือ (กางไพ่) ---------- */
+.hand-fan { display: flex; justify-content: center; padding: 18px 4px 6px; min-height: 120px; overflow-x: auto; }
+.gcard {
+  position: relative; flex: 0 0 auto; width: 70px; height: 100px; margin-left: -12px; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(60, 50, 30, .14);
+  transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 4deg)) translateY(calc(max(var(--i) - (var(--n) - 1) / 2, (var(--n) - 1) / 2 - var(--i)) * 2px));
+  transform-origin: 50% 120%; transition: transform .15s, box-shadow .15s;
+}
+.gcard:first-child { margin-left: 0; }
+.gcard:active { transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 4deg)); }
+.gcard .gc-emoji { font-size: 1.9rem; line-height: 1; }
+.gcard .gc-name { font-size: .68rem; font-weight: 600; color: var(--muted); }
+.gcard .gc-c { position: absolute; font-size: .65rem; font-weight: 700; }
+.gcard .gc-c.tl { top: 5px; left: 6px; color: var(--ok); }
+.gcard .gc-c.br { bottom: 5px; right: 6px; color: var(--muted); }
+.gcard.contraband { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--card)); }
+.gcard.contraband .gc-name { color: var(--bad); }
+.hand-fan.picking .gcard { cursor: pointer; }
+.gcard.on { transform: translateY(-18px) rotate(0); border: 2px solid var(--accent); box-shadow: 0 8px 16px rgba(59, 91, 122, .25); z-index: 2; }
+.mcard { display: inline-grid; place-items: center; width: 30px; height: 40px; margin: 2px; border-radius: 6px; background: var(--card); border: 1px solid var(--line); font-size: 1.1rem; box-shadow: var(--shadow-sm); }
+.mcard.contraband { border-color: var(--bad); }
+
+/* ---------- ผู้ตรวจการ ---------- */
+.sh-stage { margin-bottom: 14px; display: grid; gap: 10px; }
+.sh-stage .card { margin: 0; }
+.sh-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 8px 6px; border-bottom: 1px dashed var(--line); }
+.sh-row:last-child { border-bottom: 0; }
+.sh-row.cur { background: var(--accent-soft); border-radius: 10px; }
+.sh-row.done { opacity: .55; }
+.sh-row .muted { margin-left: auto; }
+.sh-stand { display: flex; flex-wrap: wrap; justify-content: center; margin: 6px 0; }
+.sh-final .sh-stand { justify-content: flex-start; flex: 1 1 100%; margin: 0; }
+.sh-total { margin-left: auto; }
+.sh-result { text-align: center; }
+.sh-result.honest { border: 2px solid var(--ok); }
+.sh-result.liar { border: 2px solid var(--bad); }
+.sh-reveal { display: flex; justify-content: center; flex-wrap: wrap; }
+.sh-reveal .mcard { width: 40px; height: 54px; font-size: 1.5rem; }
+.sh-declare, .sh-bribe { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+.sh-declare .faces .face { font-size: 1.4rem; }
+
+.lie-actions[hidden] { display: none !important; }
+
+/* กางไพ่: จัดกลางเมื่อพอดีจอ / เลื่อนดูได้ครบเมื่อล้นจอ (ไม่โดนตัดซ้าย) */
+.hand-fan { justify-content: flex-start; padding-left: 10px; padding-right: 10px; }
+.hand-fan > :first-child { margin-left: auto; }
+.hand-fan > :last-child { margin-right: auto; }
+
+/* ---------- ไพ่โป๊กเกอร์ธีมแมว ---------- */
+.pcard {
+  --w: 52px; position: relative; flex: 0 0 auto; width: var(--w); height: calc(var(--w) * 1.4);
+  display: grid; place-items: center; border-radius: calc(var(--w) * .14);
+  background: #fffdf8; color: #2b2925; border: 1px solid #d9d0bf; box-shadow: 0 1px 3px rgba(60, 50, 30, .18);
+  font-weight: 700; line-height: 1; user-select: none;
+}
+.pcard.red { color: #b4473a; }
+.pcard .pc-center { font-size: calc(var(--w) * .5); }
+.pcard .pc-corner { position: absolute; top: calc(var(--w) * .06); left: calc(var(--w) * .08); display: flex; flex-direction: column; align-items: center; font-size: calc(var(--w) * .24); }
+.pcard .pc-corner i { font-style: normal; font-size: calc(var(--w) * .2); margin-top: 1px; }
+.pcard .pc-corner.br { top: auto; left: auto; bottom: calc(var(--w) * .06); right: calc(var(--w) * .08); transform: rotate(180deg); }
+.pcard.sm { --w: 30px; }
+.pcard.sm .pc-corner { display: none; }
+.pcard.sm .pc-center { font-size: 12px; }
+.pcard.sm::after { content: attr(title); position: absolute; inset: 2px; display: grid; place-items: center; font-size: 10px; }
+.pcard.sm.empty::after, .pcard.sm.back::after { content: none; }
+.pcard.sm .pc-center { position: absolute; bottom: 2px; right: 2px; }
+.pcard.md { --w: 52px; }
+.pcard.lg { --w: 64px; }
+.pcard.empty { background: transparent; border: 2px dashed var(--line); box-shadow: none; }
+.pcard.back {
+  background: repeating-linear-gradient(45deg, #3b5b7a 0 6px, #46698b 6px 12px);
+  border: 3px solid #fffdf8; color: #fffdf8;
+}
+.pcard.back span { font-size: calc(var(--w) * .45); opacity: .9; }
+.pk-stage { display: grid; gap: 10px; margin-bottom: 14px; }
+.pk-stage .card { margin: 0; }
+.pk-table { text-align: center; background: color-mix(in srgb, #3f7d4e 10%, var(--card)); }
+.pk-board { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+@media (min-width: 560px) { .pk-board .pcard.md { --w: 64px; } }
+.pk-pot { margin-top: 10px; font-size: 1.05rem; }
+.pk-mini { display: flex; gap: 3px; justify-content: center; margin: 6px 0 2px; min-height: 0; }
+.pk-tag { display: inline-block; font-size: .62rem; font-weight: 700; padding: 1px 5px; margin-left: 4px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+.pk-bet { font-size: .78rem; color: var(--accent); font-weight: 600; }
+.pk-me { display: flex; align-items: center; gap: 12px; }
+.pk-hole { display: flex; gap: 6px; }
+.pk-hole.folded { opacity: .4; filter: grayscale(1); }
+.pk-me-info { min-width: 0; }
+.pk-hand-name { font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+.pk-draws { font-size: .82rem; color: var(--ok); font-weight: 600; }
+.pk-actions { margin-top: 10px; }
+.pk-main { display: grid !important; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; }
+.pk-raise { margin-top: 8px; display: grid; gap: 8px; justify-items: center; }
+.pk-quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.pcard.sm::after { content: none !important; }
+.pcard.sm .pc-corner { display: flex; top: 2px; left: 3px; font-size: 10px; }
+.pcard.sm .pc-corner i { font-size: 9px; }
+.pcard.sm .pc-corner.br { display: none; }
+.pcard.sm .pc-center { position: absolute; bottom: 2px; right: 2px; font-size: 12px; }

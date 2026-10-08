@@ -50,6 +50,8 @@ class Room {
     this.cn = null; // Codenames
     this.lie = null; // เต๋าโกหก
     this.tl = null; // Timeline
+    this.sh = null; // ผู้ตรวจการ
+    this.pk = null; // โป๊กเกอร์
     this.nextMode = 'guess'; // เกมที่หัวห้องเลือกไว้สำหรับรอบหน้า (ทุกคนเห็น)
     // เกมทายคำ: ตาเรา = ถามใช่/ไม่ใช่เพื่อน 1 คน → เพื่อนตอบ → ทายคำของเพื่อนคนนั้น 1 ครั้ง (หรือทายเลยไม่ต้องถาม)
     this.gq = { phase: 'ask', targetId: null, turnNo: 0, qa: {} };
@@ -64,6 +66,9 @@ class Room {
   }
 
   chatKey() {
+    // โป๊กเกอร์: ล้างแชทเมื่อขึ้นมือใหม่ (ไม่ล้างทุกการเดิมพัน จะได้แซวกันได้)
+    if (this.state === 'playing' && this.mode === 'poker') return `pk|${this.round}|${this.pk.handNo}`;
+    if (this.state === 'playing' && this.mode === 'sheriff') return this.shChatKey();
     // Timeline: ล้างแชทเมื่อเปลี่ยนคนเล่น (ไม่ล้างตอนโชว์ผลการวาง)
     if (this.state === 'playing' && this.mode === 'timeline') return `tl|${this.round}|${this.tl.turnNo}`;
     if (this.state === 'playing' && this.mode === 'codenames') return `cn|${this.round}|${this.cn.turnNo}`;
@@ -80,6 +85,8 @@ class Room {
     if (this.mode === 'codenames') return this.state === 'playing' && this.turnLimit ? this.turnKey() : null;
     if (this.mode === 'liar') return this.state === 'playing' ? this.lieTimerKey() : null;
     if (this.mode === 'timeline') return this.state === 'playing' ? this.tlTimerKey() : null;
+    if (this.mode === 'sheriff') return this.state === 'playing' ? this.shTimerKey() : null;
+    if (this.mode === 'poker') return this.state === 'playing' ? this.pkTimerKey() : null;
     return this.turnLimit ? this.turnKey() : null;
   }
 
@@ -89,6 +96,8 @@ class Room {
     if (this.mode === 'draw') return this.drTimerMs();
     if (this.mode === 'liar') return this.lieTimerMs();
     if (this.mode === 'timeline') return this.tlTimerMs();
+    if (this.mode === 'sheriff') return this.shTimerMs();
+    if (this.mode === 'poker') return this.pkTimerMs();
     return this.turnLimit * 1000;
   }
 
@@ -100,6 +109,8 @@ class Room {
     if (this.mode === 'codenames') return `cn|${this.round}|${this.cn.turnNo}|${this.cn.phase}`;
     if (this.mode === 'liar') return `lie|${this.round}|${this.lie.seq}|${this.lie.phase}`;
     if (this.mode === 'timeline') return `tl|${this.round}|${this.tl.seq}|${this.tl.phase}`;
+    if (this.mode === 'sheriff') return `sh|${this.round}|${this.sh.seq}|${this.sh.phase}`;
+    if (this.mode === 'poker') return `pk|${this.round}|${this.pk.seq}|${this.pk.phase}`;
     if (this.mode === 'center') {
       const c = this.ct;
       return `c|${this.round}|${c.turnNo}|${c.phase}|${c.qa.length}|${this.ctCurrent()}`;
@@ -123,6 +134,8 @@ class Room {
     if (this.mode === 'codenames') return this.cnPass(null);
     if (this.mode === 'liar') return this.lieTimeout();
     if (this.mode === 'timeline') return this.tlTimeout();
+    if (this.mode === 'sheriff') return this.shTimeout();
+    if (this.mode === 'poker') return this.pkTimeout();
     if (this.mode === 'undercover') {
       const u = this.uc;
       if (u.phase === 'vote') {
@@ -226,6 +239,8 @@ class Room {
     if (this.mode === 'codenames') return this.cnAutoSkip();
     if (this.mode === 'liar') return this.lieAutoSkip();
     if (this.mode === 'timeline') return this.tlAutoSkip();
+    if (this.mode === 'sheriff') return this.shAutoSkip();
+    if (this.mode === 'poker') return this.pkAutoSkip();
     if (this.mode === 'draw') {
       const d = this.players.get(this.drCurrent());
       return d && !d.connected ? this.drPass(null) : false;
@@ -247,6 +262,8 @@ class Room {
     if (this.mode === 'codenames') return this.cnCurrent();
     if (this.mode === 'liar') return this.lieCurrent();
     if (this.mode === 'timeline') return this.tlCurrent();
+    if (this.mode === 'sheriff') return this.shCurrent();
+    if (this.mode === 'poker') return this.pkCurrent();
     if (this.state === 'playing' && this.gq.phase === 'answer') return this.gq.targetId; // รอเพื่อนตอบ
     return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
   }
@@ -283,6 +300,8 @@ class Room {
     if (this.mode === 'codenames') return this.cnPass(id);
     if (this.mode === 'liar') return false; // ต้องประกาศหรือกดโกหก
     if (this.mode === 'timeline') return this.state === 'playing' && this.tl.phase === 'place' ? this.tlTimeout() : false;
+    if (this.mode === 'sheriff') return false; // ผู้ตรวจการต้องตัดสินเอง
+    if (this.mode === 'poker') return false; // ต้องเลือกเอง (หมดเวลา = ผ่าน/หมอบให้)
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
@@ -344,6 +363,7 @@ class Room {
     if (this.state === 'playing' && this.mode === 'draw') this.drAddPlayer(id);
     if (this.state === 'playing' && this.mode === 'codenames') this.cnAddPlayer(id);
     if (this.state === 'playing' && this.mode === 'timeline') this.tlAddPlayer(id);
+    if (this.state === 'playing' && this.mode === 'poker') this.pkAddPlayer(id);
     if (this.state === 'playing' && this.mode === 'guess') {
       this.assignWord(player);
       this.turnOrder.push(id); // ต่อท้ายคิว
@@ -369,6 +389,8 @@ class Room {
     if (this.mode === 'codenames') this.cnRemove(id);
     if (this.mode === 'liar') this.lieRemove(id);
     if (this.mode === 'timeline') this.tlRemove(id);
+    if (this.mode === 'sheriff') this.shRemove(id);
+    if (this.mode === 'poker') this.pkRemove(id);
     this.players.delete(id);
     const idx = this.turnOrder.indexOf(id);
     if (idx !== -1) {
@@ -423,6 +445,8 @@ class Room {
     this.cn = null;
     this.lie = null;
     this.tl = null;
+    this.sh = null;
+    this.pk = null;
     this.round += 1;
     this.state = 'playing';
     this.feed = [];
@@ -467,6 +491,8 @@ class Room {
     if (this.state !== 'playing') return;
     if (this.mode === 'codenames') return this.cnFinish(null, 'ended');
     if (this.mode === 'timeline') return this.tlFinish();
+    if (this.mode === 'sheriff') return this.shFinish();
+    if (this.mode === 'poker') return this.pkFinish();
     if (this.mode === 'liar') {
       this.lie.phase = 'over';
       this.state = 'reveal';
@@ -529,6 +555,8 @@ class Room {
       cn: this.mode === 'codenames' && this.cn ? this.cnView(id) : null,
       lie: this.mode === 'liar' && this.lie ? this.lieView(id) : null,
       tl: this.mode === 'timeline' && this.tl ? this.tlView(id) : null,
+      sh: this.mode === 'sheriff' && this.sh ? this.shView(id) : null,
+      pk: this.mode === 'poker' && this.pk ? this.pkView(id) : null,
       turnTotalMs: this.turnTotalMs || null,
       gq: this.mode === 'guess' ? { turnNo: this.gq.turnNo, phase: this.gq.phase, targetId: this.gq.targetId, asker: this.gAsker(), qa: this.gq.qa, answers: ANSWERS } : null,
       state: this.state,
@@ -565,5 +593,7 @@ require('./draw').install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGOR
 require('./codenames').install(Room, { shuffle, normalize, parseEntry, WORDS });
 require('./liar').install(Room, { shuffle });
 require('./timeline').install(Room, { shuffle });
+require('./sheriff').install(Room, { shuffle });
+require('./poker').install(Room, { shuffle });
 
 module.exports = { Room, CATEGORIES, TURN_LIMITS, normalize };

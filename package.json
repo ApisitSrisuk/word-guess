@@ -1,13 +1,13 @@
 {
   "name": "word-guess-game",
   "version": "3.0.0",
-  "description": "เกมปาร์ตี้กับเพื่อน — ทายคำ, ใครคือสปาย, ทายคำตรงกลาง, หัวขโมยชีส, วาดภาพทายคำ, Codenames, เต๋าโกหก, Timeline เล่นบนมือถือ",
+  "description": "เกมปาร์ตี้กับเพื่อน — ทายคำ, ใครคือสปาย, ทายคำตรงกลาง, หัวขโมยชีส, วาดภาพทายคำ, Codenames, เต๋าโกหก, Timeline, ผู้ตรวจการ, โป๊กเกอร์แมว เล่นบนมือถือ",
   "private": true,
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test.js && node test-undercover.js && node test-center.js && node test-cheese.js && node test-draw.js && node test-codenames.js && node test-liar.js && node test-timeline.js && node test-server.js && node test-draw-server.js"
+    "test": "node test.js && node test-undercover.js && node test-center.js && node test-cheese.js && node test-draw.js && node test-codenames.js && node test-liar.js && node test-timeline.js && node test-sheriff.js && node test-poker.js && node test-server.js && node test-draw-server.js"
   },
   "dependencies": {
     "express": "^4.21.2",

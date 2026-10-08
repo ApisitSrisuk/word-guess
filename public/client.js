@@ -447,6 +447,91 @@ $('chCloseVote').addEventListener('click', () => {
   confirmTap($('chCloseVote'), 'แตะอีกครั้ง นับผลเลย', () => act($('chCloseVote'), 'closeVote'));
 });
 
+// ---------- ไพ่โป๊กเกอร์ธีมแมว ----------
+const CAT_SUITS = [
+  { e: '🐟', n: 'ปลา', red: false },
+  { e: '🧶', n: 'ไหมพรม', red: true },
+  { e: '🐭', n: 'หนู', red: false },
+  { e: '🍣', n: 'ซูชิ', red: true },
+];
+const CAT_FACES = { 11: '😼', 12: '😻', 13: '🦁', 14: '🐾' };
+const rankLabel = (r) => ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[r] || String(r));
+function catCard(c, size = '') {
+  if (!c) return `<div class="pcard empty ${size}"></div>`;
+  const su = CAT_SUITS[c.s];
+  return `<div class="pcard ${su.red ? 'red' : ''} ${size}" title="${rankLabel(c.r)} ${su.n}">
+    <span class="pc-corner">${rankLabel(c.r)}<i>${su.e}</i></span>
+    <span class="pc-center">${CAT_FACES[c.r] || su.e}</span>
+    <span class="pc-corner br">${rankLabel(c.r)}<i>${su.e}</i></span>
+  </div>`;
+}
+const catBack = (size = '') => `<div class="pcard back ${size}"><span>🐾</span></div>`;
+
+// ---------- โป๊กเกอร์: ปุ่มเดิมพัน ----------
+let pkRaise = 0;
+let pkSeq = -1;
+let pkRaiseOpen = false;
+const pkAct = (btn, move, to) => act(btn, 'pkAct', { move, to });
+$('pkFold').addEventListener('click', () => confirmTap($('pkFold'), 'หมอบจริงนะ?', () => pkAct($('pkFold'), 'fold')));
+$('pkCall').addEventListener('click', () => pkAct($('pkCall'), state.pk.toCall > 0 ? 'call' : 'check'));
+$('pkRaiseToggle').addEventListener('click', () => { pkRaiseOpen = !pkRaiseOpen; render(); });
+$('pkMinus').addEventListener('click', () => { pkRaise = Math.max(state.pk.minRaiseTo, pkRaise - 20); render(); });
+$('pkPlus').addEventListener('click', () => { pkRaise = Math.min(state.pk.maxRaiseTo, pkRaise + 20); render(); });
+$('pkRaiseRow').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-q]');
+  if (!b) return;
+  const k = state.pk;
+  const potAfterCall = k.pot + k.toCall;
+  const target = { min: k.minRaiseTo, half: k.currentBet + Math.round(potAfterCall / 2), pot: k.currentBet + potAfterCall, all: k.maxRaiseTo }[b.dataset.q];
+  pkRaise = Math.max(k.minRaiseTo, Math.min(k.maxRaiseTo, target));
+  render();
+});
+$('pkRaiseBtn').addEventListener('click', () => {
+  const k = state.pk;
+  const all = pkRaise >= k.maxRaiseTo;
+  pkAct($('pkRaiseBtn'), all ? 'allin' : 'raise', pkRaise).then(() => { pkRaiseOpen = false; });
+});
+
+// ---------- ไพ่สินค้า (ใช้ในผู้ตรวจการ) ----------
+function goodCard(type, goods, { id, on = false, tag = 'button', i = 0, n = 1 } = {}) {
+  const g = goods[type];
+  const attrs = id != null ? `data-card="${id}"` : '';
+  return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="gcard ${g.legal ? '' : 'contraband'} ${on ? 'on' : ''}" ${attrs} style="--i:${i};--n:${n}">
+    <span class="gc-c tl">${g.value}</span><span class="gc-emoji">${g.emoji}</span><span class="gc-name">${g.name}</span><span class="gc-c br">⚖️${g.fine}</span>
+  </${tag}>`;
+}
+const miniCard = (type, goods) => `<span class="mcard ${goods[type].legal ? '' : 'contraband'}" title="${goods[type].name}">${goods[type].emoji}</span>`;
+
+// ---------- ผู้ตรวจการ: เลือกไพ่ใส่กระเป๋า / ประกาศ / สินบน / ตัดสิน ----------
+const shSel = new Set();
+let shDeclareType = 'apple';
+let shBribe = 0;
+let shRoundKey = '';
+$('shHand').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-card]');
+  if (!b || $('shPackRow').hidden) return;
+  const id = Number(b.dataset.card);
+  if (shSel.has(id)) shSel.delete(id);
+  else if (shSel.size < 5) shSel.add(id);
+  else toast('ใส่กระเป๋าได้สูงสุด 5 ใบ');
+  render();
+});
+$('shDeclare').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-t]');
+  if (!b) return;
+  shDeclareType = b.dataset.t;
+  render();
+});
+$('shBribeMinus').addEventListener('click', () => { shBribe = Math.max(0, shBribe - 1); render(); });
+$('shBribePlus').addEventListener('click', () => { shBribe = Math.min(state.sh.coins[state.me] || 0, shBribe + 1); render(); });
+$('shPackBtn').addEventListener('click', () => {
+  act($('shPackBtn'), 'shPack', { cardIds: [...shSel], declare: shDeclareType, bribe: shBribe }, '🧳 ส่งกระเป๋าแล้ว').then((res) => {
+    if (res && !res.error) shSel.clear();
+  });
+});
+$('shPassBtn').addEventListener('click', () => act($('shPassBtn'), 'shDecide', { choice: 'pass' }));
+$('shInspectBtn').addEventListener('click', () => act($('shInspectBtn'), 'shDecide', { choice: 'inspect' }));
+
 // ---------- Timeline: เลือกการ์ด → แตะช่อง (2 ครั้ง) เพื่อวาง ----------
 let tlCard = null; // id การ์ดที่เลือก
 let tlSlotArmed = null;
@@ -838,10 +923,12 @@ function renderLeaderboard(s) {
   $('lbCard').classList.toggle('spotlight', s.state === 'reveal');
 }
 
-const MODE_NAME = { timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
+const MODE_NAME = { poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
+  poker: 'Texas Hold\'em ไพ่ธีมแมว ชิปคนละ 1,000 เบี้ย 10/20 — ไพ่ในมือ 2 ใบ + ไพ่กลาง 5 ใบ ระบบบอกมือไพ่ให้ ชิปหมดตกรอบ (2 คนขึ้นไป)',
+  sheriff: 'ผลัดกันเป็นผู้ตรวจการ พ่อค้าแพ็กสินค้าใส่กระเป๋าแล้วประกาศ (จะโกหกแอบใส่ของเถื่อน/ติดสินบนก็ได้) ผู้ตรวจการเลือกปล่อยผ่านหรือเปิดตรวจ รวยสุดชนะ (3 คนขึ้นไป)',
   timeline: 'ทุกคนได้การ์ดเหตุการณ์ (ไม่เห็นปี) ผลัดกันวางลงไทม์ไลน์ให้ถูกว่าเกิดก่อน-หลังอะไร ใครการ์ดหมดก่อนชนะ (2 คนขึ้นไป)',
   liar: 'ทุกคนมีเต๋าลับ 5 ลูก ผลัดกันประกาศว่าทั้งโต๊ะมีเลขนี้กี่ลูก (เลข ⚀ นับเป็นทุกเลข) หรือกด "โกหก!" ใส่คนก่อนหน้า ใครเต๋าหมดตกรอบ (2 คนขึ้นไป)',
   codenames: 'แบ่ง 2 ทีม หัวหน้าเห็นสีการ์ด ใบ้ 1 คำ + ตัวเลข ลูกทีมเปิดการ์ดสีทีมตัวเองให้ครบก่อน ระวัง 💀 นักฆ่า! (4 คนขึ้นไป)',
@@ -862,6 +949,8 @@ function render() {
   const cnMode = s.mode === 'codenames' && s.cn && s.state !== 'lobby';
   const lieMode = s.mode === 'liar' && s.lie && s.state !== 'lobby';
   const tlMode = s.mode === 'timeline' && s.tl && s.state !== 'lobby';
+  const shMode = s.mode === 'sheriff' && s.sh && s.state !== 'lobby';
+  const pkMode = s.mode === 'poker' && s.pk && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -889,7 +978,13 @@ function render() {
   $('lieStage').hidden = true;
   $('tlBar').hidden = true;
   $('tlStage').hidden = true;
-  if (tlMode) renderTimeline(s, me, isHost);
+  $('shBar').hidden = true;
+  $('shStage').hidden = true;
+  $('pkBar').hidden = true;
+  $('pkStage').hidden = true;
+  if (pkMode) renderPoker(s, me, isHost);
+  else if (shMode) renderSheriff(s, me, isHost);
+  else if (tlMode) renderTimeline(s, me, isHost);
   else if (lieMode) renderLiar(s, me, isHost);
   else if (cnMode) renderCodenames(s, me, isHost);
   else if (drMode) renderDraw(s, me, isHost);
@@ -923,6 +1018,8 @@ const GAMES = [
   { mode: 'codenames', emoji: '🟥', name: 'Codenames', short: 'ทีมใบ้คำ ระวังนักฆ่า', min: 4 },
   { mode: 'liar', emoji: '🎲', name: 'เต๋าโกหก', short: 'ประกาศเต๋า จับคนโกหก', min: 2 },
   { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
+  { mode: 'sheriff', emoji: '👮', name: 'ผู้ตรวจการ', short: 'ลักลอบของเถื่อน ติดสินบน', min: 3 },
+  { mode: 'poker', emoji: '🃏', name: 'โป๊กเกอร์แมว', short: 'Texas Hold\'em ไพ่ธีมแมว 😺', min: 2 },
 ];
 $('modeSeg').innerHTML = GAMES.map((g) => `<button type="button" class="game-card" data-mode="${g.mode}" role="radio">
   <span class="g-emoji">${g.emoji}</span><span class="g-name">${g.name}</span><span class="g-short">${g.short}</span><span class="g-min">${g.min}+ คน</span>
@@ -956,7 +1053,7 @@ function renderHost(s, isHost) {
     b.tabIndex = isHost ? 0 : -1;
   }
   $('modeHint').innerHTML = `<b>${game.emoji} ${game.name}</b> — ${esc(MODE_HINT[s.nextMode])}`;
-  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline'].includes(s.nextMode);
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker'].includes(s.nextMode);
   $('whiteRow').hidden = s.nextMode !== 'undercover';
   for (const id of ['categorySelect', 'timeSelect', 'whiteCheck']) $(id).disabled = !isHost;
   $('startBtn').hidden = !isHost;
@@ -1179,6 +1276,210 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('ucSkipBtn').hidden = myTurn || !turnPlayer || uc.phase === 'vote';
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
+}
+
+// ---------- โป๊กเกอร์ ----------
+const STREET = { preflop: 'ก่อนเปิดไพ่กลาง', flop: 'เปิด 3 ใบ (Flop)', turn: 'ใบที่ 4 (Turn)', river: 'ใบสุดท้าย (River)' };
+function renderPoker(s, me, isHost) {
+  const k = s.pk;
+  const over = k.phase === 'over';
+  const show = k.phase === 'showdown';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const myTurn = k.phase === 'bet' && k.current === s.me;
+  const inHand = k.inHand.includes(s.me);
+  const folded = k.folded.includes(s.me);
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('turnStrip').hidden = true;
+  $('myCard').innerHTML = '';
+  $('pkStage').hidden = false;
+  if (k.seq !== pkSeq) { pkSeq = k.seq; pkRaise = k.minRaiseTo; if (!myTurn) pkRaiseOpen = false; }
+
+  // ป้าย
+  if (over) $('banner').textContent = k.final && k.final[0] ? `🏆 ${nameOf(k.final[0].id)} ชนะ! เหลือชิป ${k.final[0].chips}` : '🏁 จบเกม';
+  else if (show && k.result) {
+    const w = k.result.winners;
+    $('banner').textContent = `🏆 ${w.map((x) => nameOf(x.id)).join(', ')} ได้ ${w.map((x) => x.amount).join('/')}${w[0] && w[0].hand ? ` · ${w[0].hand}` : ''}`;
+  } else $('banner').textContent = `🃏 มือที่ ${k.handNo} · ${myTurn ? 'ตาคุณ!' : `ตาของ ${nameOf(k.current)}`}`;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = over ? 'จัดอันดับตามชิปที่เหลือ' : `${STREET[k.street] || ''} · เบี้ย 10/20 · ชิปของคุณ <b>${k.chips[s.me] ?? '-'}</b>`;
+
+  // โต๊ะกลาง
+  let html = '';
+  if (over && k.final) {
+    html = `<div class="card pk-final"><h3>🏆 สรุปชิป</h3>${k.final.map((x) => `<div class="sh-row"><b>${x.rank}.</b> ${avatar(nameOf(x.id), 'sm')}${esc(nameOf(x.id))}<span class="sh-total">🪙 <b>${x.chips}</b>${x.pts ? ` <span class="pill">+${x.pts}</span>` : ''}</span></div>`).join('')}</div>`;
+  } else {
+    const board = [0, 1, 2, 3, 4].map((i) => catCard(k.board[i], 'md')).join('');
+    html = `<div class="card pk-table">
+      <div class="pk-board">${board}</div>
+      <div class="pk-pot">🪙 กองกลาง <b>${k.pot}</b>${k.currentBet ? ` · เดิมพันรอบนี้ ${k.currentBet}` : ''}</div>
+    </div>`;
+    if (show && k.result && !k.result.uncontested) {
+      html += `<div class="card pk-show"><h3>🃏 เปิดไพ่</h3>${Object.entries(k.result.shown).map(([id, x]) => {
+        const win = k.result.winners.find((w) => w.id === id);
+        return `<div class="sh-row ${win ? 'cur' : ''}">${avatar(nameOf(id), 'sm')}<b>${esc(nameOf(id))}</b>
+          <span class="pk-mini">${x.cards.map((c) => catCard(c, 'sm')).join('')}</span>
+          <span>${esc(x.hand)}</span>${win ? `<span class="pill">+${win.amount}</span>` : ''}</div>`;
+      }).join('')}</div>`;
+    } else if (show && k.result) {
+      html += `<div class="card pk-show center">🙅 ทุกคนหมอบ — ${esc(nameOf(k.result.winners[0].id))} ได้กองกลาง ${k.result.winners[0].amount} (ไม่ต้องเปิดไพ่)</div>`;
+    }
+  }
+  $('pkStage').innerHTML = html;
+
+  // ผู้เล่นรอบโต๊ะ
+  $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
+    const seated = k.inHand.includes(p.id);
+    const f = k.folded.includes(p.id);
+    const tags = [p.id === k.dealerId && 'D', p.id === k.sbId && 'SB', p.id === k.bbId && 'BB'].filter(Boolean).map((t) => `<span class="pk-tag">${t}</span>`).join('');
+    let status = !(p.id in k.chips) ? '👀 ดูอยู่ (รอมือหน้า)' : !seated ? (k.chips[p.id] === 0 ? '☠️ ชิปหมด' : '⏳ รอมือหน้า') : f ? '🙅 หมอบ' : k.chips[p.id] === 0 ? '🔥 หมดหน้าตัก' : p.id === k.current ? '🤔 กำลังคิด…' : '';
+    if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+    const cardsHtml = show && k.result && k.result.shown[p.id]
+      ? k.result.shown[p.id].cards.map((c) => catCard(c, 'sm')).join('')
+      : seated && !f ? catBack('sm') + catBack('sm') : '';
+    const cls = ['player', !p.connected && 'off', f && 'is-out', p.id === k.current && 'selected'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+      <span class="score">${p.score} แต้ม</span>
+      <div class="name">${avatar(p.name)}${esc(p.name)} ${tags}</div>
+      <div class="pk-mini">${cardsHtml}</div>
+      <div class="word">🪙 ${k.chips[p.id] ?? '-'}${k.bets[p.id] ? ` <span class="pk-bet">เดิมพัน ${k.bets[p.id]}</span>` : ''}</div>
+      <div class="status">${status}</div>
+    </div>`;
+  }).join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่าง: ไพ่ของฉัน + มือไพ่ + ปุ่ม
+  const bar = $('pkBar');
+  bar.hidden = over;
+  if (over) return;
+  $('pkHole').innerHTML = k.myHole ? k.myHole.map((c) => catCard(c, 'lg')).join('') : catBack('lg') + catBack('lg');
+  $('pkHole').classList.toggle('folded', folded);
+  $('pkHandName').textContent = k.myHand ? `✨ ${k.myHand}` : '';
+  $('pkDraws').textContent = (k.myDraws || []).map((d) => `🎯 ${d}`).join(' · ');
+  const myTags = [s.me === k.dealerId && 'ดีลเลอร์', s.me === k.sbId && 'Small blind', s.me === k.bbId && 'Big blind'].filter(Boolean).join(' · ');
+  $('pkInfoText').textContent = k.waiting ? '⏳ เข้ามากลางมือ — ได้เล่นมือหน้า'
+    : !inHand ? (k.chips[s.me] === 0 ? '☠️ ชิปหมดแล้ว ดูเพื่อนเล่นต่อ' : '⏳ รอมือหน้า')
+    : folded ? '🙅 คุณหมอบมือนี้แล้ว'
+    : show ? '⏳ อีกเดี๋ยวแจกมือใหม่'
+    : myTurn ? `🫵 ตาคุณ!${k.toCall ? ` ต้องตาม ${k.toCall}` : ''}${myTags ? ` · ${myTags}` : ''}`
+    : `⏳ รอ ${nameOf(k.current)}…${myTags ? ` · ${myTags}` : ''} · 🪙 ${k.chips[s.me]}${k.myBet ? ` (ลงแล้ว ${k.myBet})` : ''}`;
+  $('pkActions').hidden = !myTurn;
+  if (!myTurn) return;
+  const allInCall = k.toCall > 0 && k.toCall >= k.chips[s.me];
+  $('pkCall').textContent = k.toCall > 0 ? (allInCall ? `🔥 ตามหมดหน้าตัก ${k.toCall}` : `✅ ตาม ${k.toCall}`) : '✅ ผ่าน';
+  const canRaise = k.maxRaiseTo > k.currentBet && !allInCall;
+  $('pkRaiseToggle').hidden = !canRaise;
+  $('pkRaiseRow').hidden = !(pkRaiseOpen && canRaise);
+  pkRaise = Math.max(k.minRaiseTo, Math.min(k.maxRaiseTo, pkRaise || k.minRaiseTo));
+  $('pkRaiseAmt').textContent = pkRaise;
+  $('pkRaiseBtn').textContent = pkRaise >= k.maxRaiseTo ? `🔥 หมดหน้าตัก (${pkRaise})` : `⬆️ ${k.currentBet ? 'เพิ่มเป็น' : 'ลง'} ${pkRaise}`;
+}
+
+// ---------- ผู้ตรวจการ ----------
+function renderSheriff(s, me, isHost) {
+  const S = s.sh;
+  const G = S.goods;
+  const over = S.phase === 'over';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const sheriffName = nameOf(S.sheriffId);
+  const L = S.last;
+  const declareTxt = (b) => `${G[b.declare].emoji} ${G[b.declare].name} × ${b.count}`;
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('turnStrip').hidden = true;
+  $('shStage').hidden = false;
+  const key = `${s.round}|${S.roundNo}`;
+  if (key !== shRoundKey) { shRoundKey = key; shSel.clear(); shBribe = 0; shDeclareType = 'apple'; }
+
+  // ป้ายด้านบน
+  let banner;
+  if (over) banner = S.final && S.final[0] ? `🏆 ${nameOf(S.final[0].id)} รวยที่สุด! (💰${S.final[0].total})` : '🏁 จบเกม';
+  else if (S.phase === 'pack') banner = S.amSheriff ? '👮 รอบนี้คุณเป็นผู้ตรวจการ' : `🧳 แพ็กกระเป๋า! ผู้ตรวจการ: ${sheriffName}`;
+  else if (S.phase === 'result' && L) banner = L.action === 'pass' ? `✅ ปล่อยผ่าน ${nameOf(L.merchant)}` : L.honest ? `😇 ${nameOf(L.merchant)} พูดจริง!` : `🚨 จับได้! ${nameOf(L.merchant)} โกหก`;
+  else banner = `👮 ${S.amSheriff ? 'คุณ' : sheriffName} กำลังตรวจกระเป๋าของ ${S.current === s.me ? 'คุณ' : nameOf(S.current)}`;
+  $('banner').textContent = banner;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = over ? 'คะแนน = เงิน + ราคาสินค้าบนแผงร้าน' : `รอบ ${S.roundNo}/${S.totalRounds} · 💰 เงินของคุณ <b>${S.coins[s.me] ?? '-'}</b>`;
+
+  // การ์ดของฉัน: บทบาท + แผงร้าน
+  const myScore = (S.myStand || []).reduce((n, t) => n + G[t].value, 0);
+  $('myCard').innerHTML = S.inGame ? `<div class="mycard sh-me">
+    <div class="label"><span>${S.amSheriff ? '👮 ผู้ตรวจการ' : '🧳 พ่อค้า'} · ${esc(me ? me.name : '')}</span><span>💰 ${S.coins[s.me]}</span></div>
+    <div class="sh-stand">${S.myStand.length ? S.myStand.map((t) => miniCard(t, G)).join('') : '<span class="muted small-text">แผงร้านยังว่าง</span>'}</div>
+    <div class="hint">สินค้าบนแผงร้าน ${S.myStand.length} ชิ้น (มูลค่า ${myScore})</div>
+  </div>` : '<div class="mycard"><div class="hint">👀 คุณเข้ามากลางเกม — ดูไปก่อน รอเกมหน้า</div></div>';
+
+  // กลางจอ: กระเป๋าของพ่อค้า / ผลการตรวจ / สรุปคะแนน
+  let stage = '';
+  if (over && S.final) {
+    stage = `<div class="card sh-final"><h3>🏆 สรุปคะแนน</h3>${S.final.map((x) => `<div class="sh-row">
+      <b>${x.rank}.</b> ${avatar(nameOf(x.id), 'sm')}${esc(nameOf(x.id))}
+      <span class="sh-stand">${x.stand.map((t) => miniCard(t, G)).join('')}</span>
+      <span class="sh-total">💰${x.coins} + 📦${x.goods} = <b>${x.total}</b>${x.pts ? ` <span class="pill">+${x.pts}</span>` : ''}</span>
+    </div>`).join('')}</div>`;
+  } else if (S.phase === 'pack') {
+    stage = `<div class="card sh-bags"><h3>🧳 กระเป๋าของพ่อค้า</h3>${S.merchants.map((m) => `<div class="sh-row ${S.packed.includes(m) ? 'done' : ''}">
+      ${avatar(nameOf(m), 'sm')}${esc(nameOf(m))}<span class="muted">${S.packed.includes(m) ? '✓ แพ็กแล้ว' : '⏳ กำลังแพ็ก…'}</span></div>`).join('')}</div>`;
+  } else {
+    if (S.phase === 'result' && L) {
+      const inner = L.action === 'pass'
+        ? `<p>👮 ${esc(sheriffName)} ปล่อยกระเป๋าของ <b>${esc(nameOf(L.merchant))}</b> ผ่าน${L.auto ? ' (หมดเวลา)' : ''}${L.bribePaid ? ` — ได้สินบน 💰${L.bribePaid}` : ''}</p><p class="muted small-text">ไม่มีใครรู้ว่าข้างในมีอะไร 🤫</p>`
+        : `<p>ประกาศ: ${declareTxt(L)} · ข้างในจริง:</p><div class="sh-reveal">${L.cards.map((t) => miniCard(t, G)).join('')}</div>
+           <p>${L.honest ? `😇 พูดจริง! ${esc(sheriffName)} จ่ายค่าปรับ 💰${L.finePaid}` : `🚨 โกหก! ยึด ${L.confiscated.map((t) => G[t].emoji).join('')} · ${esc(nameOf(L.merchant))} จ่ายค่าปรับ 💰${L.finePaid}`}</p>`;
+      stage += `<div class="card sh-result ${L.action === 'inspect' ? (L.honest ? 'honest' : 'liar') : ''}">${inner}</div>`;
+    }
+    stage += `<div class="card sh-bags"><h3>🧳 กระเป๋ารอตรวจ</h3>${S.queue.map((m, i) => {
+      const b = S.bags[m];
+      const cur = m === S.current;
+      const done = S.queue.indexOf(S.current) > i;
+      return `<div class="sh-row ${cur ? 'cur' : ''} ${done ? 'done' : ''}">${avatar(nameOf(m), 'sm')}<b>${esc(nameOf(m))}</b>
+        <span>${b ? declareTxt(b) : ''}</span>${b && b.bribe ? `<span class="pill">💰 สินบน ${b.bribe}</span>` : ''}</div>`;
+    }).join('')}</div>`;
+  }
+  $('shStage').innerHTML = stage;
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
+    const inG = S.order.includes(p.id);
+    let status = !inG ? '👀 ดูอยู่' : p.id === S.sheriffId ? '👮 ผู้ตรวจการ' : S.phase === 'pack' ? (S.packed.includes(p.id) ? '✓ แพ็กแล้ว' : '⏳ แพ็กอยู่') : p.id === S.current ? '😰 โดนตรวจ' : '🧳 พ่อค้า';
+    if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+    const cls = ['player', !p.connected && 'off', p.id === S.current && 'selected'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+      <span class="score">${p.score} แต้ม</span>
+      <div class="name">${avatar(p.name)}${esc(p.name)}</div>
+      ${inG ? `<div class="word">💰${S.coins[p.id]} · 📦${S.standCount[p.id]}</div>` : ''}
+      <div class="status">${status}</div>
+    </div>`;
+  }).join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่างจอ
+  const bar = $('shBar');
+  bar.hidden = over || !S.inGame;
+  if (bar.hidden) return;
+  const packing = S.phase === 'pack' && !S.amSheriff && !S.packed.includes(s.me);
+  const deciding = S.phase === 'inspect' && S.amSheriff;
+  for (const id of [...shSel]) if (!S.myHand.some((c) => c.id === id)) shSel.delete(id);
+  let info;
+  if (packing) info = shSel.size ? `เลือกแล้ว ${shSel.size} ใบ — ประกาศชนิดเดียว (จะโกหกก็ได้)` : '🧳 แตะไพ่ใส่กระเป๋า 1–5 ใบ';
+  else if (S.phase === 'pack') info = S.amSheriff ? `👮 รอพ่อค้าแพ็กกระเป๋า (${S.packed.length}/${S.merchants.length})` : `✓ ส่งกระเป๋าแล้ว: ${S.myBag ? declareTxt(S.myBag) : ''} — รอคนอื่น`;
+  else if (deciding) {
+    const b = S.bags[S.current];
+    info = `กระเป๋าของ ${nameOf(S.current)}: ${b ? declareTxt(b) : ''}${b && b.bribe ? ` · ยื่นสินบน 💰${b.bribe}` : ''}`;
+  } else if (S.phase === 'inspect' && S.current === s.me) info = '😰 ผู้ตรวจการกำลังดูกระเป๋าคุณ… อ้อนในแชทได้!';
+  else info = S.phase === 'result' ? '⏳ ดูผลการตรวจ…' : `⏳ รอ ${sheriffName} ตัดสิน…`;
+  $('shInfoText').textContent = info;
+  const n = S.myHand.length;
+  const hand = S.myHand.map((c, i) => goodCard(c.type, G, { id: c.id, on: shSel.has(c.id), i, n })).join('');
+  if ($('shHand').innerHTML !== hand) $('shHand').innerHTML = hand;
+  $('shHand').classList.toggle('picking', packing);
+  $('shPackRow').hidden = !packing;
+  $('shDeclare').innerHTML = Object.keys(G).filter((t) => G[t].legal).map((t) => `<button type="button" class="secondary face ${shDeclareType === t ? 'on' : ''}" data-t="${t}" title="${G[t].name}">${G[t].emoji}</button>`).join('');
+  shBribe = Math.min(shBribe, S.coins[s.me] || 0);
+  $('shBribe').textContent = shBribe;
+  $('shPackBtn').disabled = !shSel.size;
+  $('shPackBtn').textContent = shSel.size ? `🧳 ส่งกระเป๋า: ${G[shDeclareType].emoji} × ${shSel.size}${shBribe ? ` + สินบน 💰${shBribe}` : ''}` : '🧳 เลือกไพ่ก่อน';
+  $('shDecideRow').hidden = !deciding;
 }
 
 // ---------- Timeline ----------
@@ -1719,6 +2020,17 @@ function feedItem(f) {
       if (f.reason === 'maxq') return `<li class="ok">🎙️ ครบ 20 คำถาม ไม่มีใครทายถูก — <b>${esc(f.name)}</b> (คนตอบ) +3 · คำคือ "${esc(f.word)}"</li>`;
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
+    case 'pk-act': return `<li class="muted">🃏 <b>${esc(f.name)}</b> ${esc(f.label)}</li>`;
+    case 'pk-win': return `<li class="ok">🏆 ${f.winners.map((w) => `<b>${esc(w.name)}</b> +${w.amount}${w.hand ? ` (${esc(w.hand)})` : ''}`).join(', ')}${f.uncontested ? ' — คนอื่นหมอบหมด' : ''}</li>`;
+    case 'pk-over': return f.winner ? `<li class="ok">🏆 ${esc(f.winner)} ชนะโป๊กเกอร์! (ชิป ${f.chips})</li>` : '<li class="muted">🏁 จบเกม</li>';
+    case 'sh-resolve': {
+      const em = { apple: '🍎', cheese: '🧀', bread: '🍞', chicken: '🐔' }[f.declare] || '';
+      if (f.action === 'pass') return `<li class="muted">✅ ${esc(f.sheriff)} ปล่อย ${esc(f.merchant)} ผ่าน (${em}×${f.count})${f.bribePaid ? ` +สินบน 💰${f.bribePaid}` : ''}</li>`;
+      return f.honest
+        ? `<li class="ok">😇 ${esc(f.merchant)} พูดจริง (${em}×${f.count}) — ผู้ตรวจการเสีย 💰${f.finePaid}</li>`
+        : `<li class="bad">🚨 ${esc(f.merchant)} โกหก! โดนยึดของเถื่อน — เสีย 💰${f.finePaid}</li>`;
+    }
+    case 'sh-over': return `<li class="ok">🏆 ${esc(f.winner || '?')} รวยที่สุด! (💰${f.total})</li>`;
     case 'tl-place': return `<li class="${f.correct ? 'ok' : 'bad'}">${f.correct ? '✅' : '❌'} <b>${esc(f.name)}</b> วาง "${esc(f.text)}" (${f.year})${f.correct ? ' +1' : ''}</li>`;
     case 'tl-over': return f.winners.length ? `<li class="ok">🏆 ${f.winners.map(esc).join(', ')} ชนะ Timeline! (+3)</li>` : '<li class="muted">🏁 จบเกม</li>';
     case 'lie-call': return `<li class="${f.eliminated ? 'bad' : ''}">🤥 <b>${esc(f.challenger)}</b> ${f.auto ? '(หมดเวลา) ' : ''}ไม่เชื่อ ${esc(f.bidder)} (${f.q}×${['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][f.f]}) — มีจริง ${f.actual} → <b>${esc(f.loser)}</b> เสียเต๋า${f.eliminated ? ' ☠️ ตกรอบ' : ''}</li>`;
