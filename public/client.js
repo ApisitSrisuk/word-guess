@@ -6,12 +6,40 @@ let peek = false; // คำลับของฉันแสดงอยู่�
 let lastFeedLen = 0;
 let lastRound = 0;
 
+// อวาตาร์: วงกลมสีประจำตัว + ตัวอักษรแรก (ข้ามสระหน้าของไทย)
+function avatar(name, cls = '') {
+  const n = String(name || '?');
+  let h = 0;
+  for (const ch of n) h = (h * 31 + ch.codePointAt(0)) % 360;
+  const letter = (n.replace(/^[เแโใไ]+/, '')[0] || n[0] || '?').toUpperCase();
+  return `<span class="av ${cls}" style="--h:${h}">${letter.replace(/[<>&"]/g, '')}</span>`;
+}
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// เศษกระดาษโปรยตอนจบเกม (สีหม่นเข้ากับธีมกระดาษ)
+function confetti() {
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  const colors = ['#3b5b7a', '#b4473a', '#c9a227', '#3f7d4e', '#8a6fa8', '#d9cbb0'];
+  for (let i = 0; i < 36; i++) {
+    const b = document.createElement('span');
+    b.style.left = `${Math.random() * 100}%`;
+    b.style.background = colors[i % colors.length];
+    b.style.animationDelay = `${Math.random() * 0.5}s`;
+    b.style.setProperty('--drift', `${(Math.random() - 0.5) * 140}px`);
+    box.appendChild(b);
+  }
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 3200);
+}
 
 let toastTimer;
 function toast(msg, buzz) {
   $('toast').textContent = msg;
   $('toast').hidden = false;
+  $('toast').classList.remove('pop');
+  void $('toast').offsetWidth; // เริ่มแอนิเมชันใหม่
+  $('toast').classList.add('pop');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($('toast').hidden = true), msg.startsWith('🔍') ? 5000 : 2200);
   if (buzz && navigator.vibrate) navigator.vibrate(buzz);
@@ -191,6 +219,7 @@ function notify(prev, s) {
   if (uc && uc.phase === 'vote' && (!prev || !prev.uc || prev.uc.phase !== 'vote')) {
     toast(uc.alive.includes(s.me) ? '🗳️ ถึงเวลาโหวต! แตะการ์ดคนที่สงสัย' : '🗳️ เพื่อนกำลังโหวต', [80, 40, 80]);
   }
+  if (prev && s.state === 'reveal' && prev.state === 'playing') confetti();
   if (prev && s.state === 'reveal' && prev.state === 'playing') toast('🏁 จบรอบ! ดูเฉลยและอันดับได้เลย', [100, 60, 100]);
   const myName = s.players.find((p) => p.id === s.me)?.name;
   const fresh = s.feed.length >= lastFeedLen ? s.feed.slice(lastFeedLen) : s.feed;
@@ -416,6 +445,32 @@ $('chActions').addEventListener('click', (e) => {
 });
 $('chCloseVote').addEventListener('click', () => {
   confirmTap($('chCloseVote'), 'แตะอีกครั้ง นับผลเลย', () => act($('chCloseVote'), 'closeVote'));
+});
+
+// ---------- Timeline: เลือกการ์ด → แตะช่อง (2 ครั้ง) เพื่อวาง ----------
+let tlCard = null; // id การ์ดที่เลือก
+let tlSlotArmed = null;
+let tlSeq = -1;
+const fmtYear = (y) => `ค.ศ. ${y} · พ.ศ. ${y + 543}`;
+$('tlHand').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-card]');
+  if (!b || b.disabled) return;
+  tlCard = Number(b.dataset.card) === tlCard ? null : Number(b.dataset.card);
+  tlSlotArmed = null;
+  render();
+});
+$('tlLine').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-slot]');
+  if (!b || tlCard == null) return;
+  const slot = Number(b.dataset.slot);
+  if (tlSlotArmed !== slot) { tlSlotArmed = slot; render(); return; }
+  const cardId = tlCard;
+  tlCard = null;
+  tlSlotArmed = null;
+  api('tlPlace', { cardId, slot }).then((res) => {
+    if (res.error) return toast(`⚠️ ${res.error}`, 150);
+    toast(res.correct ? `✅ ถูกต้อง! ปี ${res.year} (+1)` : `❌ ผิด! เหตุการณ์นี้ปี ${res.year} — จั่วใบใหม่`, res.correct ? [60, 40, 60] : [200, 80, 200]);
+  });
 });
 
 // ---------- เต๋าโกหก: เลือกจำนวน × เลข / ประกาศ / โกหก! ----------
@@ -775,7 +830,7 @@ function renderLeaderboard(s) {
     const badge = medals[rank] || `${rank + 1}.`;
     return `<li class="${p.id === s.me ? 'me' : ''}">
       <span class="rank">${badge}</span>
-      <span class="lb-name">${esc(p.name)}${p.id === s.me ? ' (ฉัน)' : ''}${p.id === s.hostId ? ' 👑' : ''}</span>
+      <span class="lb-name">${avatar(p.name, 'sm')}${esc(p.name)}${p.id === s.me ? ' (ฉัน)' : ''}${p.id === s.hostId ? ' 👑' : ''}</span>
       <span class="lb-score">${p.score}</span>
     </li>`;
   }).join('');
@@ -783,10 +838,11 @@ function renderLeaderboard(s) {
   $('lbCard').classList.toggle('spotlight', s.state === 'reveal');
 }
 
-const MODE_NAME = { guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
+const MODE_NAME = { timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
+  timeline: 'ทุกคนได้การ์ดเหตุการณ์ (ไม่เห็นปี) ผลัดกันวางลงไทม์ไลน์ให้ถูกว่าเกิดก่อน-หลังอะไร ใครการ์ดหมดก่อนชนะ (2 คนขึ้นไป)',
   liar: 'ทุกคนมีเต๋าลับ 5 ลูก ผลัดกันประกาศว่าทั้งโต๊ะมีเลขนี้กี่ลูก (เลข ⚀ นับเป็นทุกเลข) หรือกด "โกหก!" ใส่คนก่อนหน้า ใครเต๋าหมดตกรอบ (2 คนขึ้นไป)',
   codenames: 'แบ่ง 2 ทีม หัวหน้าเห็นสีการ์ด ใบ้ 1 คำ + ตัวเลข ลูกทีมเปิดการ์ดสีทีมตัวเองให้ครบก่อน ระวัง 💀 นักฆ่า! (4 คนขึ้นไป)',
   draw: 'ผลัดกันวาด คนวาดเลือกคำจาก 3 ตัวเลือก คนอื่นพิมพ์ทายแข่งกัน ยิ่งถูกเร็วยิ่งได้แต้มเยอะ (เวลาวาด = เวลาต่อตา)',
@@ -805,6 +861,7 @@ function render() {
   const drMode = s.mode === 'draw' && s.dr && s.state !== 'lobby';
   const cnMode = s.mode === 'codenames' && s.cn && s.state !== 'lobby';
   const lieMode = s.mode === 'liar' && s.lie && s.state !== 'lobby';
+  const tlMode = s.mode === 'timeline' && s.tl && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -830,7 +887,10 @@ function render() {
   $('cnStage').hidden = true;
   $('lieBar').hidden = true;
   $('lieStage').hidden = true;
-  if (lieMode) renderLiar(s, me, isHost);
+  $('tlBar').hidden = true;
+  $('tlStage').hidden = true;
+  if (tlMode) renderTimeline(s, me, isHost);
+  else if (lieMode) renderLiar(s, me, isHost);
   else if (cnMode) renderCodenames(s, me, isHost);
   else if (drMode) renderDraw(s, me, isHost);
   else if (chMode) renderCheese(s, me, isHost);
@@ -838,38 +898,83 @@ function render() {
   else if (ucMode) renderUndercover(s, me, isHost, turnPlayer);
   else renderGuess(s, me, isHost, turnPlayer);
 
+  // ล็อบบี้: การ์ดเลือกเกมขึ้นบนสุด ไม่ต้องมีป้าย/การ์ดของฉันซ้ำ
+  if (s.state === 'lobby') {
+    $('banner').textContent = '';
+    $('subBanner').hidden = true;
+    $('myCard').innerHTML = '';
+  }
   renderLeaderboard(s);
   renderHost(s, isHost);
+  document.body.classList.toggle('my-turn', s.state === 'playing' && s.currentTurn === s.me);
   tickTimer();
 
   $('feed').innerHTML = s.feed.slice().reverse().map(feedItem).join('') || '<li class="muted">ยังไม่มีอะไรเกิดขึ้น</li>';
 }
 
 // ---------- ปุ่มหัวห้อง ----------
+// การ์ดเกมในล็อบบี้
+const GAMES = [
+  { mode: 'guess', emoji: '🎯', name: 'ทายคำ', short: 'ถามใช่/ไม่ใช่ ทายคำของเพื่อน', min: 2 },
+  { mode: 'undercover', emoji: '🕵️', name: 'ใครคือสปาย', short: 'ใบ้คำแล้วโหวตจับสปาย', min: 3 },
+  { mode: 'center', emoji: '❓', name: 'ทายคำตรงกลาง', short: 'ถามคนตอบ แข่งกันทายคำลับ', min: 2 },
+  { mode: 'cheese', emoji: '🧀', name: 'หัวขโมยชีส', short: 'ตื่นกลางคืน จับขโมยตอนเช้า', min: 3 },
+  { mode: 'draw', emoji: '🎨', name: 'วาดภาพทายคำ', short: 'วาดให้เพื่อนทาย แบบสด ๆ', min: 2 },
+  { mode: 'codenames', emoji: '🟥', name: 'Codenames', short: 'ทีมใบ้คำ ระวังนักฆ่า', min: 4 },
+  { mode: 'liar', emoji: '🎲', name: 'เต๋าโกหก', short: 'ประกาศเต๋า จับคนโกหก', min: 2 },
+  { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
+];
+$('modeSeg').innerHTML = GAMES.map((g) => `<button type="button" class="game-card" data-mode="${g.mode}" role="radio">
+  <span class="g-emoji">${g.emoji}</span><span class="g-name">${g.name}</span><span class="g-short">${g.short}</span><span class="g-min">${g.min}+ คน</span>
+</button>`).join('');
+
+// เมนูหัวห้องระหว่างเล่น (⚙️)
+$('hostMenuBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('hostMenu').hidden = !$('hostMenu').hidden;
+});
+document.addEventListener('click', (e) => {
+  if (!$('hostMenu').hidden && !e.target.closest('.host-menu-wrap')) $('hostMenu').hidden = true;
+});
+$('timeSelectGame').addEventListener('change', () => {
+  api('settings', { turnLimit: Number($('timeSelectGame').value) }).then((res) => {
+    toast(res.error ? `⚠️ ${res.error}` : `⏱️ ตั้งเวลาต่อตา: ${$('timeSelectGame').selectedOptions[0].textContent}`);
+  });
+});
+
 function renderHost(s, isHost) {
   const setup = s.state !== 'playing';
-  $('hostControls').hidden = !isHost;
-  $('setupBox').hidden = !setup;
-  $('startBtn').hidden = !setup;
-  $('endBtn').hidden = setup;
-  $('endBtn').textContent = s.mode === 'guess' ? 'จบรอบ/เฉลยทั้งหมด' : 'จบเกม/เฉลยคำ';
+  const game = GAMES.find((g) => g.mode === s.nextMode) || GAMES[0];
+  const enough = s.players.length >= game.min;
+  $('hostControls').hidden = !setup;
+  $('hostControls').classList.toggle('readonly', !isHost);
+  $('lobbyCount').textContent = `👥 ${s.players.length} คนในห้อง`;
   for (const b of $('modeSeg').querySelectorAll('button')) {
     const on = b.dataset.mode === s.nextMode;
     b.classList.toggle('on', on);
     b.setAttribute('aria-checked', on);
+    b.tabIndex = isHost ? 0 : -1;
   }
-  $('modeHint').textContent = MODE_HINT[s.nextMode];
-  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar'].includes(s.nextMode);
+  $('modeHint').innerHTML = `<b>${game.emoji} ${game.name}</b> — ${esc(MODE_HINT[s.nextMode])}`;
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline'].includes(s.nextMode);
   $('whiteRow').hidden = s.nextMode !== 'undercover';
-  $('startBtn').textContent = s.nextMode === 'liar' ? '🎲 เริ่มเต๋าโกหก' : s.nextMode === 'codenames' ? '🟥🟦 เริ่ม Codenames' : s.nextMode === 'draw' ? '🎨 เริ่มวาดภาพทายคำ' : s.nextMode === 'cheese' ? '🧀 เริ่มหัวขโมยชีส' : s.nextMode === 'undercover' ? '🕵️ เริ่มเกมสปาย' : s.nextMode === 'center' ? '❓ เริ่มทายคำตรงกลาง' : s.round ? 'เริ่มรอบใหม่' : 'เริ่มเกม';
+  for (const id of ['categorySelect', 'timeSelect', 'whiteCheck']) $(id).disabled = !isHost;
+  $('startBtn').hidden = !isHost;
+  $('startBtn').disabled = !enough;
+  $('startBtn').textContent = enough ? `🚀 เริ่ม ${game.name}!` : `ต้องมีอย่างน้อย ${game.min} คน (ตอนนี้ ${s.players.length})`;
   const sel = $('categorySelect');
   if (sel.options.length === 0) {
     sel.innerHTML = '<option value="random">🎲 สุ่มหมวด</option>' +
       s.categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   }
   if (document.activeElement !== $('timeSelect')) $('timeSelect').value = String(s.turnLimit);
-  $('waitHost').hidden = isHost || !setup;
-  $('waitHost').textContent = `หัวห้องเลือก: ${MODE_NAME[s.nextMode]} — รอหัวห้องกดเริ่ม…`;
+  if (document.activeElement !== $('timeSelectGame')) $('timeSelectGame').value = String(s.turnLimit);
+  $('waitHost').hidden = isHost;
+  $('waitHost').textContent = enough ? '⏳ รอหัวห้องกดเริ่มเกม…' : `⏳ รอเพื่อนอีก ${game.min - s.players.length} คน (ต้องมีอย่างน้อย ${game.min} คน)`;
+  // ระหว่างเล่น: หัวห้องใช้เมนู ⚙️ แทน
+  $('hostMenuBtn').hidden = !(isHost && !setup);
+  if ($('hostMenuBtn').hidden) $('hostMenu').hidden = true;
+  if (!$('endBtn').dataset.armed) $('endBtn').textContent = s.mode === 'guess' ? '🏁 จบรอบ/เฉลยทั้งหมด' : '🏁 จบเกม/เฉลย';
 }
 
 // ---------- เกมทายคำ ----------
@@ -944,7 +1049,7 @@ function renderGuess(s, me, isHost, turnPlayer) {
       return `<div class="${cls}" data-id="${esc(p.id)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)}</div>
         ${word}
         ${s.mode === 'guess' && s.state !== 'lobby' ? qaOf(gq, p.id, nameOf) : ''}
         <div class="status">${status}</div>
@@ -1038,7 +1143,7 @@ function renderUndercover(s, me, isHost, turnPlayer) {
       return `<div class="${cls}" data-id="${esc(p.id)}" data-name="${esc(p.name)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)} ${tally}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)} ${tally}</div>
         ${inGame ? cluesOf(uc, p.id) : ''}
         <div class="status">${votable ? (uc.myVote === p.id ? '🗳️ คุณโหวตคนนี้' : '👆 แตะเพื่อโหวต') : status}</div>
       </div>`;
@@ -1074,6 +1179,86 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('ucSkipBtn').hidden = myTurn || !turnPlayer || uc.phase === 'vote';
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
+}
+
+// ---------- Timeline ----------
+function renderTimeline(s, me, isHost) {
+  const t = s.tl;
+  const over = t.phase === 'over';
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const curId = t.order[t.order.indexOf(s.currentTurn)] || s.currentTurn;
+  const myTurn = t.phase === 'place' && s.currentTurn === s.me;
+  const last = t.last;
+  if (t.seq !== tlSeq) { tlSeq = t.seq; if (!myTurn) { tlCard = null; tlSlotArmed = null; } }
+  if (!myTurn) { tlCard = null; tlSlotArmed = null; }
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('myCard').innerHTML = '';
+  $('tlStage').hidden = false;
+
+  $('banner').textContent = over
+    ? (t.winners.length ? `🏆 ${t.winners.map(nameOf).join(', ')} ชนะ!` : '🏁 จบเกม')
+    : t.phase === 'show' && last ? (last.correct ? `✅ ${nameOf(last.by)} วางถูก!` : `❌ ${nameOf(last.by)} วางผิด — ปี ${last.card.year}`)
+    : `📅 ตาของ ${myTurn ? 'คุณ' : nameOf(s.currentTurn)}`;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = `ไทม์ไลน์ ${t.line.length} ใบ · การ์ดเหลือในกอง ${t.deckLeft}${t.finalRound && !over ? ' · <b>🔔 รอบสุดท้าย!</b>' : ''}`;
+
+  // ลำดับตา + จำนวนการ์ดในมือ
+  $('turnStrip').hidden = over;
+  $('turnStrip').innerHTML = t.order.filter((id) => s.players.some((p) => p.id === id)).map((id) => {
+    const cls = [id === s.currentTurn && 'now'].filter(Boolean).join(' ');
+    return `<li class="${cls}">${esc(nameOf(id))}${id === s.me ? ' (ฉัน)' : ''} 🃏${t.handCounts[id]}</li>`;
+  }).join('');
+
+  // ไทม์ไลน์ (มีช่องให้วางเมื่อเลือกการ์ดแล้ว)
+  const picking = myTurn && tlCard != null;
+  const slot = (i) => picking
+    ? `<li class="tl-slot ${tlSlotArmed === i ? 'armed' : ''}"><button type="button" data-slot="${i}">${tlSlotArmed === i ? '👆 แตะอีกครั้งเพื่อวาง' : '⬇ วางตรงนี้'}</button></li>`
+    : '';
+  // การวางผิดล่าสุด: โชว์เป็นการ์ดจาง ๆ ตรงช่องที่วาง
+  const ghost = (i) => t.phase === 'show' && last && !last.correct && last.slot === i
+    ? `<li class="tl-item wrong"><span class="tl-year">${fmtYear(last.card.year)}</span><span class="tl-text">❌ ${esc(last.card.text)}</span></li>` : '';
+  let html = '';
+  t.line.forEach((c, i) => {
+    html += slot(i) + ghost(i);
+    const fresh = t.phase === 'show' && last && last.correct && last.card.id === c.id;
+    html += `<li class="tl-item ${fresh ? 'fresh' : ''}"><span class="tl-year">${fmtYear(c.year)}</span><span class="tl-text">${esc(c.text)}</span></li>`;
+  });
+  html += slot(t.line.length) + ghost(t.line.length);
+  if ($('tlLine').innerHTML !== html) $('tlLine').innerHTML = html;
+  if (picking && tlSlotArmed == null) $('tlLine').querySelector('.tl-slot')?.scrollIntoView({ block: 'nearest' });
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players
+    .filter((p) => p.id !== s.me)
+    .map((p) => {
+      const n = t.handCounts[p.id];
+      let status = n == null ? '👀 ดูอยู่' : p.id === s.currentTurn ? '🤔 กำลังวาง' : '';
+      if (over && t.winners.includes(p.id)) status = '🏆 ชนะ';
+      if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+      const hand = over && t.hands && t.hands[p.id] && t.hands[p.id].length
+        ? `<ul class="tl-mini">${t.hands[p.id].map((c) => `<li>${esc(c.text)} <b>(${c.year})</b></li>`).join('')}</ul>` : '';
+      const cls = ['player', !p.connected && 'off', p.id === s.currentTurn && 'selected'].filter(Boolean).join(' ');
+      return `<div class="${cls}">
+        ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+        <span class="score">${p.score} แต้ม</span>
+        <div class="name">${avatar(p.name)}${esc(p.name)}</div>
+        ${n != null ? `<div class="word">🃏 × ${n}</div>` : ''}
+        ${hand}
+        <div class="status">${status}</div>
+      </div>`;
+    })
+    .join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่างจอ: การ์ดในมือ
+  const bar = $('tlBar');
+  bar.hidden = over || !t.inGame;
+  if (bar.hidden) return;
+  $('tlInfoText').textContent = myTurn
+    ? (tlCard == null ? '🫵 ตาคุณ! แตะเลือกการ์ด 1 ใบ' : '👆 แตะช่อง "วางตรงนี้" ในไทม์ไลน์ (แตะ 2 ครั้ง)')
+    : t.phase === 'show' ? '⏳ ดูผลการวาง…' : `⏳ รอ ${nameOf(s.currentTurn)} วาง… (การ์ดของคุณ ${t.myHand.length} ใบ)`;
+  const hand = t.myHand.map((c) => `<button type="button" class="tl-card ${tlCard === c.id ? 'on' : ''}" data-card="${c.id}" ${myTurn ? '' : 'disabled'}>${esc(c.text)}</button>`).join('');
+  if ($('tlHand').innerHTML !== hand) $('tlHand').innerHTML = hand;
 }
 
 // ---------- เต๋าโกหก ----------
@@ -1146,7 +1331,7 @@ function renderLiar(s, me, isHost) {
       return `<div class="${cls}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)}</div>
         ${dice}
         <div class="status">${status}</div>
       </div>`;
@@ -1285,7 +1470,7 @@ function renderDraw(s, me, isHost) {
       return `<div class="${cls}" data-id="${esc(p.id)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)}</div>
         <div class="status">${status}</div>
       </div>`;
     })
@@ -1375,7 +1560,7 @@ function renderCheese(s, me, isHost) {
       return `<div class="${cls}" data-id="${esc(p.id)}" data-name="${esc(p.name)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)} ${tally}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)} ${tally}</div>
         ${dieOver}
         <div class="status">${votable ? (ch.myVote === p.id ? '🗳️ คุณโหวตคนนี้' : '👆 แตะเพื่อโหวต') : status}</div>
       </div>`;
@@ -1474,7 +1659,7 @@ function renderCenter(s, me, isHost, turnPlayer) {
       return `<div class="${cls}" data-id="${esc(p.id)}">
         ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
         <span class="score">${p.score} แต้ม</span>
-        <div class="name">${esc(p.name)}</div>
+        <div class="name">${avatar(p.name)}${esc(p.name)}</div>
         <div class="status">${status}</div>
       </div>`;
     })
@@ -1534,6 +1719,8 @@ function feedItem(f) {
       if (f.reason === 'maxq') return `<li class="ok">🎙️ ครบ 20 คำถาม ไม่มีใครทายถูก — <b>${esc(f.name)}</b> (คนตอบ) +3 · คำคือ "${esc(f.word)}"</li>`;
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
+    case 'tl-place': return `<li class="${f.correct ? 'ok' : 'bad'}">${f.correct ? '✅' : '❌'} <b>${esc(f.name)}</b> วาง "${esc(f.text)}" (${f.year})${f.correct ? ' +1' : ''}</li>`;
+    case 'tl-over': return f.winners.length ? `<li class="ok">🏆 ${f.winners.map(esc).join(', ')} ชนะ Timeline! (+3)</li>` : '<li class="muted">🏁 จบเกม</li>';
     case 'lie-call': return `<li class="${f.eliminated ? 'bad' : ''}">🤥 <b>${esc(f.challenger)}</b> ${f.auto ? '(หมดเวลา) ' : ''}ไม่เชื่อ ${esc(f.bidder)} (${f.q}×${['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][f.f]}) — มีจริง ${f.actual} → <b>${esc(f.loser)}</b> เสียเต๋า${f.eliminated ? ' ☠️ ตกรอบ' : ''}</li>`;
     case 'lie-over': return f.winner ? `<li class="ok">🏆 <b>${esc(f.winner)}</b> ชนะเต๋าโกหก! (+5)${f.second ? ` · อันดับ 2 ${esc(f.second)} (+2)` : ''}</li>` : '<li class="muted">🏁 หัวห้องจบเกม</li>';
     case 'cn-pick': {

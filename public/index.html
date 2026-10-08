@@ -3,35 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#e8590c" />
+  <meta name="theme-color" content="#f5f1e8" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <title>เกมปาร์ตี้กับเพื่อน</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="offline" class="offline" hidden role="status">📡 สัญญาณหลุด กำลังต่อใหม่… (คำและคะแนนยังอยู่)</div>
   <main>
     <!-- หน้าเข้าสู่ระบบ -->
-    <section id="login" class="card">
-      <h1>🎉 เกมปาร์ตี้กับเพื่อน</h1>
-      <p class="muted">🎯 ทายคำ · 🕵️ ใครคือสปาย · ❓ ทายคำตรงกลาง · 🧀 หัวขโมยชีส · 🎨 วาดภาพทายคำ · 🟥🟦 Codenames · 🎲 เต๋าโกหก — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
-      <form id="loginForm">
-        <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" required /></label>
+    <section id="login">
+      <div class="hero">
+        <div class="hero-emojis" aria-hidden="true">
+          <span>🎯</span><span>🕵️</span><span>❓</span><span>🧀</span><span>🎨</span><span>🟥</span><span>🎲</span><span>📅</span>
+        </div>
+        <h1>เกมปาร์ตี้<br /><span class="grad">กับเพื่อน</span></h1>
+        <p>8 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+      </div>
+      <form id="loginForm" class="card login-card">
+        <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" placeholder="เช่น มิก" required /></label>
         <label>รหัสห้อง<input id="codeInput" maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="เช่น PARTY1" required /></label>
-        <button type="submit">เข้าห้อง</button>
+        <button type="submit" class="big-btn">🚀 เข้าห้อง</button>
         <p id="loginError" class="error"></p>
+        <p class="muted small-text center">ยังไม่มีห้อง? พิมพ์รหัสอะไรก็ได้ = สร้างห้องใหม่ แล้วส่งรหัสให้เพื่อน</p>
       </form>
     </section>
 
     <!-- ห้องเกม -->
     <section id="room" hidden>
       <header class="topbar">
-        <div>ห้อง <b id="roomCode"></b> <span id="roundInfo" class="muted"></span></div>
+        <div class="room-chip">🏠 <b id="roomCode"></b> <span id="roundInfo"></span></div>
         <div class="top-actions">
-          <button id="chatBtn" class="small" type="button">💬 แชท<span id="chatBadge" class="badge" hidden></span></button>
+          <div class="host-menu-wrap">
+            <button id="hostMenuBtn" class="secondary small" type="button" aria-label="ตั้งค่าหัวห้อง" hidden>⚙️</button>
+            <div id="hostMenu" class="host-menu card" hidden>
+              <b>👑 เมนูหัวห้อง</b>
+              <label>⏱️ เวลาต่อตา
+                <select id="timeSelectGame">
+                  <option value="30">30 วินาที</option>
+                  <option value="45">45 วินาที</option>
+                  <option value="60">1 นาที</option>
+                  <option value="90">1 นาที 30 วินาที</option>
+                  <option value="120">2 นาที</option>
+                  <option value="0">ไม่จับเวลา</option>
+                </select>
+              </label>
+              <button id="endBtn" class="secondary" type="button">🏁 จบรอบ/เฉลยทั้งหมด</button>
+            </div>
+          </div>
+          <button id="chatBtn" class="small" type="button" aria-label="แชท">💬<span class="lbl"> แชท</span><span id="chatBadge" class="badge" hidden></span></button>
           <button id="shareBtn" class="secondary small" type="button" aria-label="ชวนเพื่อน">📤</button>
           <button id="leaveBtn" class="secondary small" type="button" aria-label="ออกจากห้อง" title="ออกจากห้อง">🚪</button>
         </div>
@@ -48,6 +71,45 @@
       <div class="layout">
         <div class="col">
           <div id="myCard"></div>
+
+          <!-- ล็อบบี้: เลือกเกม (หัวห้องเลือก ทุกคนเห็น) -->
+          <div id="hostControls" class="card lobby" hidden>
+            <div class="lobby-head">
+              <h2>🎮 เลือกเกม</h2>
+              <span id="lobbyCount" class="pill"></span>
+            </div>
+            <div id="setupBox">
+              <div class="game-grid" id="modeSeg" role="radiogroup" aria-label="เลือกเกม"></div>
+              <p id="modeHint" class="mode-hint"></p>
+              <div class="settings">
+                <label id="categoryRow">📚 หมวด
+                  <select id="categorySelect"></select>
+                </label>
+                <label>⏱️ เวลาต่อตา
+                  <select id="timeSelect">
+                    <option value="30">30 วินาที</option>
+                    <option value="45">45 วินาที</option>
+                    <option value="60">1 นาที</option>
+                    <option value="90">1 นาที 30 วินาที</option>
+                    <option value="120">2 นาที</option>
+                    <option value="0">ไม่จับเวลา</option>
+                  </select>
+                </label>
+              </div>
+              <label id="whiteRow" class="check" hidden>
+                <input type="checkbox" id="whiteCheck" />
+                <span>เพิ่ม 🤍 Mr. White (ไม่ได้คำ ต้องเนียน) — 5 คนขึ้นไป</span>
+              </label>
+            </div>
+            <button id="startBtn" class="big-btn">🚀 เริ่มเกม</button>
+            <p id="waitHost" class="wait-host" hidden>รอหัวห้องกดเริ่มเกม…</p>
+            <p id="hostError" class="error"></p>
+          </div>
+
+          <!-- Timeline: ไทม์ไลน์กลาง -->
+          <div id="tlStage" class="tl-stage" hidden>
+            <ol id="tlLine" class="tl-line"></ol>
+          </div>
 
           <!-- เต๋าโกหก: เดิมพันปัจจุบัน + ประวัติ -->
           <div id="lieStage" class="lie-stage" hidden>
@@ -83,41 +145,7 @@
           </div>
           <div id="players" class="players"></div>
 
-          <div id="hostControls" class="card" hidden>
-            <div id="setupBox">
-              <div class="seg" id="modeSeg" role="radiogroup" aria-label="เลือกเกม">
-                <button type="button" data-mode="guess" role="radio">🎯 ทายคำ</button>
-                <button type="button" data-mode="undercover" role="radio">🕵️ ใครคือสปาย</button>
-                <button type="button" data-mode="center" role="radio">❓ ทายคำตรงกลาง</button>
-                <button type="button" data-mode="cheese" role="radio">🧀 หัวขโมยชีส</button>
-                <button type="button" data-mode="draw" role="radio">🎨 วาดภาพทายคำ</button>
-                <button type="button" data-mode="codenames" role="radio">🟥🟦 Codenames</button>
-                <button type="button" data-mode="liar" role="radio">🎲 เต๋าโกหก</button>
-              </div>
-              <p id="modeHint" class="muted small-text"></p>
-              <label id="categoryRow">หมวด
-                <select id="categorySelect"></select>
-              </label>
-              <label id="whiteRow" class="check" hidden>
-                <input type="checkbox" id="whiteCheck" />
-                <span>เพิ่ม 🤍 Mr. White (ไม่ได้คำ ต้องเนียน) — 5 คนขึ้นไป</span>
-              </label>
-            </div>
-            <label>⏱️ เวลาต่อตา
-              <select id="timeSelect">
-                <option value="30">30 วินาที</option>
-                <option value="45">45 วินาที</option>
-                <option value="60">1 นาที</option>
-                <option value="90">1 นาที 30 วินาที</option>
-                <option value="120">2 นาที</option>
-                <option value="0">ไม่จับเวลา</option>
-              </select>
-            </label>
-            <button id="startBtn">เริ่มรอบใหม่</button>
-            <button id="endBtn" class="secondary" hidden>จบรอบ/เฉลยทั้งหมด</button>
-            <p id="hostError" class="error"></p>
-          </div>
-          <p id="waitHost" class="muted center" hidden>รอหัวห้องกดเริ่มเกม…</p>
+
 
         </div>
 
@@ -157,6 +185,12 @@
           </div>
         </div>
       </form>
+
+      <!-- แถบล่างจอของเกม Timeline: การ์ดในมือ -->
+      <div id="tlBar" class="guessbar" hidden>
+        <div class="wait-turn"><span id="tlInfoText"></span></div>
+        <div id="tlHand" class="tl-hand"></div>
+      </div>
 
       <!-- แถบล่างจอของเกมเต๋าโกหก -->
       <form id="lieBar" class="guessbar" hidden>

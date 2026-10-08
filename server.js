@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,10 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'liar') {
+  if (room.mode === 'timeline') {
+    const cur = room.players.get(room.tl.order[room.tl.idx]);
+    label = `📅 ตาของ ${cur ? cur.name : '?'} — วางเหตุการณ์ลงไทม์ไลน์`;
+  } else if (room.mode === 'liar') {
     if (room.lie.phase === 'reveal') label = '🎲 เปิดเต๋า! ดูผลกัน';
     else {
       const cur = room.players.get(room.lieCurrent());
@@ -205,6 +208,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'timeline') {
+            r.startTimeline();
           } else if (r.nextMode === 'liar') {
             r.startLiar();
           } else if (r.nextMode === 'codenames') {
@@ -243,6 +248,12 @@ io.on('connection', (socket) => {
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
           break;
+        case 'tlPlace': {
+          const res = r.tlPlace(me.id, data.cardId, data.slot);
+          out.correct = res.correct;
+          out.year = res.year;
+          break;
+        }
         case 'bid':
           r.lieBid(me.id, data.q, data.f);
           break;

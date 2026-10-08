@@ -435,3 +435,179 @@ body.night .banner { color: #ffd76a; }
 .faces .face.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .lie-actions { display: grid !important; grid-template-columns: 1fr 1fr; }
 button.danger { background: var(--bad); color: #fff; }
+
+/* ---------- Timeline ---------- */
+.tl-stage { margin-bottom: 14px; }
+.tl-line { list-style: none; margin: 0; padding: 0 0 0 18px; position: relative; }
+.tl-line::before { content: ''; position: absolute; left: 6px; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--line); }
+.tl-item { position: relative; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; margin: 6px 0; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.tl-item::before { content: ''; position: absolute; left: -17px; top: 16px; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
+.tl-year { font-size: .8rem; font-weight: 700; color: var(--accent); }
+.tl-text { overflow-wrap: anywhere; }
+.tl-item.fresh { border-color: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.tl-item.wrong { border-color: var(--bad); border-style: dashed; opacity: .85; }
+.tl-item.wrong .tl-year { color: var(--bad); }
+.tl-item.wrong::before { background: var(--bad); }
+.tl-slot button { width: 100%; min-height: 40px; padding: 4px; border: 2px dashed var(--accent); background: transparent; color: var(--accent); font-size: .9rem; }
+.tl-slot.armed button { background: var(--accent); color: var(--accent-ink); border-style: solid; }
+.tl-hand { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 2px; scrollbar-width: thin; }
+.tl-card { flex: 0 0 auto; width: 150px; min-height: 72px; padding: 8px; font-size: .85rem; font-weight: 600; line-height: 1.3; text-align: left; background: var(--bg); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; white-space: normal; }
+.tl-card.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--bg)); }
+.tl-card:disabled { opacity: .8; cursor: default; }
+.tl-mini { list-style: none; margin: 6px 0 0; padding: 0; font-size: .75rem; text-align: left; }
+
+/* =====================================================================
+   📄 ธีมกระดาษ — คลีน สบายตา (ทับสไตล์เดิมทั้งหมด)
+   ===================================================================== */
+:root {
+  --paper: #f5f1e8;          /* พื้นหลังหน้า */
+  --bg: #f3efe6;             /* พื้นด้านในการ์ด/ช่องกรอก */
+  --card: #fffdf8;
+  --ink: #2b2925;
+  --muted: #7a7366;
+  --accent: #3b5b7a;          /* หมึกน้ำเงินหม่น */
+  --accent-soft: #e6ecf2;
+  --accent-ink: #ffffff;
+  --ok: #3f7d4e;
+  --bad: #b4473a;
+  --line: #e4ddcf;
+  --hidden: #efe9dc;
+  --shadow: 0 1px 2px rgba(60, 50, 30, .06), 0 6px 18px rgba(60, 50, 30, .06);
+  --shadow-sm: 0 1px 2px rgba(60, 50, 30, .08);
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1d1b18; --bg: #23211d; --card: #2a2722; --ink: #ece6da; --muted: #a59d8e;
+    --accent: #8fb0d0; --accent-soft: #2c3640; --accent-ink: #1d1b18;
+    --ok: #8cc59a; --bad: #e08a7e; --line: #3a362f; --hidden: #33302a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 18px rgba(0, 0, 0, .25); --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+  }
+}
+body {
+  font-family: 'Prompt', system-ui, sans-serif;
+  background-color: var(--paper);
+  /* เนื้อกระดาษจาง ๆ */
+  background-image: radial-gradient(rgba(120, 100, 60, .07) 1px, transparent 1px);
+  background-size: 6px 6px;
+  color: var(--ink);
+  min-height: 100dvh;
+}
+body.night { --paper: #12151c; --bg: #191d26; --card: #1e232d; --ink: #dfe6f3; --muted: #8391a7; --line: #2a3140; --hidden: #242a36; }
+
+/* ---------- พื้นฐาน ---------- */
+.card { border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; background: var(--card); }
+h1, h2, h3 { letter-spacing: -.01em; font-weight: 600; }
+h2 { margin: 0; font-size: 1.15rem; }
+input, select { border: 1px solid var(--line); border-radius: 12px; background: var(--bg); transition: border-color .15s, box-shadow .15s; }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+button {
+  border-radius: 12px; font-weight: 600; border: 1px solid transparent;
+  background: var(--accent); color: var(--accent-ink); box-shadow: none;
+  transition: background .15s, transform .08s, opacity .15s;
+}
+button:hover { filter: brightness(1.05); }
+button:active { transform: scale(.98); }
+button:disabled { opacity: .5; transform: none; }
+button.secondary { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+button.secondary:hover { background: var(--bg); filter: none; }
+button.danger { background: var(--bad); color: #fff; }
+button.armed { background: var(--bad) !important; color: #fff !important; border-color: var(--bad) !important; }
+.big-btn { width: 100%; min-height: 54px; font-size: 1.1rem; border-radius: 14px; }
+.pill { display: inline-block; padding: 3px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .85rem; }
+.small-text { font-size: .85rem; }
+.muted { color: var(--muted); }
+
+/* ---------- หน้าเข้าห้อง ---------- */
+#login { max-width: 420px; margin: 6vh auto 0; }
+.hero { text-align: center; margin-bottom: 20px; }
+.hero h1 { font-size: clamp(2rem, 8vw, 2.7rem); line-height: 1.15; font-weight: 700; margin: 10px 0 8px; color: var(--ink); }
+.hero h1 .grad { color: var(--accent); }
+.hero p { margin: 0 auto; max-width: 330px; color: var(--muted); }
+.hero-emojis { display: flex; justify-content: center; gap: 8px; font-size: 1.5rem; opacity: .9; }
+.hero-emojis span { display: inline-block; }
+.login-card { animation: rise .4s ease-out both; }
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } }
+
+/* ---------- แถบบน ---------- */
+.topbar { background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); margin: 0 -16px 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); color: var(--ink); gap: 8px; }
+.room-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: .95rem; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.room-chip #roundInfo { color: var(--muted); font-size: .85rem; }
+.top-actions { flex: 0 0 auto; }
+.top-actions button { min-width: 40px; padding: 6px 10px; }
+.top-actions button.secondary { background: var(--card); color: var(--ink); border-color: var(--line); }
+.host-menu-wrap { position: relative; }
+.host-menu { position: absolute; right: 0; top: calc(100% + 8px); width: 250px; z-index: 30; display: grid; gap: 10px; animation: rise .15s ease-out; }
+.host-menu label { margin: 0; }
+.top-actions .host-menu button.secondary { width: 100%; }
+@media (max-width: 440px) {
+  #chatBtn .lbl { display: none; }
+  .room-chip #roundInfo { display: none; }
+  .top-actions { gap: 5px; }
+  .host-menu { position: fixed; left: 12px; right: 12px; top: 64px; width: auto; }
+}
+.banner { color: var(--ink); font-size: 1.2rem; font-weight: 700; }
+.sub-banner { color: var(--muted); }
+.sub-banner b { color: var(--ink); }
+/* ถึงตาเรา: ขีดเน้นใต้ป้ายเบา ๆ (ไม่กระพริบ) */
+body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.timer { color: var(--ink); }
+.timer-track { background: var(--line); height: 6px; border-radius: 3px; }
+.timer-track i { background: var(--accent); }
+.timer.urgent { color: var(--bad); }
+.timer.urgent .timer-track i { background: var(--bad); }
+.turn-strip li { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+.turn-strip li.now { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.wait-turn { color: var(--ink); }
+
+/* ---------- ล็อบบี้: การ์ดเกม ---------- */
+.lobby-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.game-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 620px) { .game-grid { grid-template-columns: repeat(4, 1fr); } }
+.game-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  min-height: 108px; padding: 12px; border-radius: 14px; position: relative;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); box-shadow: none;
+}
+.game-card:hover { background: var(--card); filter: none; }
+.game-card .g-emoji { font-size: 1.6rem; line-height: 1.2; }
+.game-card .g-name { font-weight: 700; font-size: .98rem; }
+.game-card .g-short { font-weight: 400; font-size: .78rem; color: var(--muted); line-height: 1.35; }
+.game-card .g-min { position: absolute; top: 10px; right: 10px; font-size: .7rem; font-weight: 500; color: var(--muted); }
+.game-card.on { background: var(--card); border: 2px solid var(--accent); padding: 11px; }
+.lobby.readonly .game-card { pointer-events: none; }
+.lobby.readonly .game-card:not(.on) { opacity: .5; }
+.mode-hint { margin: 12px 0; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px dashed var(--line); font-size: .9rem; color: var(--ink); }
+.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.settings label[hidden] + label { grid-column: 1 / -1; }
+.wait-host { text-align: center; font-weight: 600; color: var(--accent); margin: 8px 0 0; }
+
+/* ---------- การ์ดผู้เล่น / อวาตาร์ ---------- */
+.av { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 6px; border-radius: 50%; vertical-align: middle;
+  font-size: .78rem; font-weight: 700; color: hsl(var(--h) 35% 30%); background: hsl(var(--h) 40% 88%); }
+@media (prefers-color-scheme: dark) { .av { color: hsl(var(--h) 45% 85%); background: hsl(var(--h) 25% 28%); } }
+.av.sm { width: 22px; height: 22px; font-size: .68rem; }
+.player { border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); background: var(--card); }
+.player.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.player .name { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+.mycard { border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); background: var(--card); }
+.mycard .big { background: var(--bg); border-radius: 12px; }
+.lb li.me { color: var(--accent); }
+.lb.spotlight { border: 2px solid var(--accent); }
+
+/* ---------- แถบล่างจอ / แชท / แจ้งเตือน ---------- */
+.guessbar { border: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; box-shadow: 0 -6px 20px rgba(60, 50, 30, .08); background: var(--card); }
+.sheet { background: var(--card); }
+.chat-list li.mine .bubble { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip { background: var(--bg); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+.badge { background: var(--bad); color: #fff; }
+.toast { border-radius: 14px; background: var(--ink); color: var(--paper); box-shadow: var(--shadow); }
+.toast.pop { animation: drop .25s ease-out; }
+@keyframes drop { from { transform: translate(-50%, -12px); opacity: 0; } }
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
+.confetti span { position: absolute; top: -40px; animation: fall 2.6s ease-in forwards; }
+@keyframes fall { to { transform: translate(var(--drift), 110vh) rotate(540deg); opacity: .9; } }
+@media (prefers-reduced-motion: reduce) {
+  .toast.pop, .confetti span, .login-card { animation: none !important; }
+}
+.confetti span { width: 8px; height: 12px; border-radius: 2px; opacity: .85; }
