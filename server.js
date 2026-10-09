@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,10 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'oldmaid') {
+  if (room.mode === 'hues') {
+    const g = room.players.get(room.hc.giver);
+    label = `🎨 ตาของ ${g ? g.name : '?'} ใบ้สี — คนใบ้ห้ามคุยในแชทนะ`;
+  } else if (room.mode === 'oldmaid') {
     label = '👵 แจกไพ่แล้ว! ทิ้งคู่ให้อัตโนมัติ — ระวังได้อีแก่นะ 😹';
   } else if (room.mode === 'poker') {
     label = `🃏 มือที่ ${room.pk.handNo} — แจกไพ่แล้ว! 😺`;
@@ -258,6 +261,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'hues') {
+            r.startHues();
           } else if (r.nextMode === 'oldmaid') {
             r.startOldMaid();
           } else if (r.nextMode === 'poker') {
@@ -306,6 +311,12 @@ io.on('connection', (socket) => {
           break;
         case 'omDraw':
           out.last = r.omDraw(me.id, data.index);
+          break;
+        case 'hcClue':
+          r.hcClue(me.id, data.text, data.pick);
+          break;
+        case 'hcPlace':
+          r.hcPlace(me.id, data.cell);
           break;
         case 'omShuffle':
           r.omShuffle(me.id);

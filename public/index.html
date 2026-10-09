@@ -21,7 +21,7 @@
           <span>🎯</span><span>🕵️</span><span>❓</span><span>🧀</span><span>🎨</span><span>🟥</span><span>🎲</span><span>📅</span>
         </div>
         <h1>เกมปาร์ตี้<br /><span class="grad">กับเพื่อน</span></h1>
-        <p>11 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+        <p>12 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       </div>
       <form id="loginForm" class="card login-card">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" placeholder="เช่น มิก" required /></label>
@@ -114,6 +114,13 @@
             <p id="hostError" class="error"></p>
           </div>
 
+          <!-- ใบ้สี: คำใบ้ + กระดานสี 480 ช่อง + ผลเฉลย -->
+          <div id="hcStage" class="hc-stage" hidden>
+            <div id="hcClues" class="hc-clues"></div>
+            <div id="hcWrap" class="hc-wrap"><div id="hcBoard" class="hc-board"></div></div>
+            <div id="hcResult"></div>
+          </div>
+
           <!-- อีแก่กินน้ำ: มือของคนที่จะดึง + ผลการดึง -->
           <div id="omStage" class="om-stage" hidden></div>
 
@@ -202,6 +209,24 @@
           </div>
         </div>
       </form>
+
+      <!-- แถบล่างจอของใบ้สี: เลือกสี + ใบ้ / วางหมุด -->
+      <div id="hcBar" class="guessbar" hidden>
+        <div class="wait-turn">
+          <span id="hcInfoText"></span>
+          <button id="hcPassBtn" type="button" class="secondary small" hidden>⏭️ ไปต่อ</button>
+        </div>
+        <div id="hcOptions" class="hc-options" hidden></div>
+        <form id="hcClueForm" class="guess-row" hidden>
+          <input id="hcClueInput" maxlength="30" autocomplete="off" enterkeyhint="send" aria-label="คำใบ้" />
+          <button type="submit" id="hcClueBtn">💬 ใบ้</button>
+        </form>
+        <div id="hcPlaceRow" class="guess-row hc-place-row" hidden>
+          <span id="hcSelSwatch" class="hc-swatch"></span>
+          <span id="hcSelText" class="hc-sel-text"></span>
+          <button type="button" id="hcPlaceBtn">📍 วางหมุด</button>
+        </div>
+      </div>
 
       <!-- แถบล่างจอของอีแก่กินน้ำ: ไพ่ในมือ + สับไพ่ -->
       <div id="omBar" class="guessbar" hidden>

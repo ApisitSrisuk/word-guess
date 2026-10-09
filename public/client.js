@@ -197,10 +197,11 @@ function notify(prev, s) {
       : s.mode === 'center' && s.ct ? (s.ct.amMaster ? '🎙️ คุณเป็นคนตอบรอบนี้! ดูคำลับได้เลย' : `❓ ทายคำตรงกลาง — หมวด ${s.category}`)
       : `🎲 รอบใหม่! หมวด: ${s.category}`, 150);
   }
-  const turnKey = (v) => v && `${v.gq ? v.gq.turnNo + v.gq.phase : ''}|${v.round}|${v.uc ? v.uc.roundNo + v.uc.phase + v.uc.clues.length : ''}|${v.ct ? v.ct.turnNo + v.ct.phase : ''}|${v.currentTurn}`;
+  const turnKey = (v) => v && `${v.gq ? v.gq.turnNo + v.gq.phase : ''}|${v.round}|${v.uc ? v.uc.roundNo + v.uc.phase + v.uc.clues.length : ''}|${v.ct ? v.ct.turnNo + v.ct.phase : ''}|${v.hc ? v.hc.seq : ''}|${v.currentTurn}`;
   const ct = s.mode === 'center' && s.ct;
   if (s.state === 'playing' && s.currentTurn === s.me && (!prev || turnKey(prev) !== turnKey(s))) {
-    const msg = ct ? (ct.phase === 'answer' ? '❓ มีคำถามมา! ตอบ ใช่/ไม่ใช่ เลย' : ct.phase === 'guess' ? '🎯 ได้คำตอบแล้ว ทายได้ 1 ครั้ง' : '🫵 ตาคุณ! ถามใช่/ไม่ใช่ หรือทายเลย')
+    const msg = s.hc ? (s.hc.phase === 'clue1' ? '🎨 ตาคุณใบ้สี! เลือกสีแล้วใบ้ 1 คำ' : '💬 ใบ้เพิ่มได้อีกไม่เกิน 2 คำ')
+      : ct ? (ct.phase === 'answer' ? '❓ มีคำถามมา! ตอบ ใช่/ไม่ใช่ เลย' : ct.phase === 'guess' ? '🎯 ได้คำตอบแล้ว ทายได้ 1 ครั้ง' : '🫵 ตาคุณ! ถามใช่/ไม่ใช่ หรือทายเลย')
       : !uc && s.gq ? (s.gq.phase === 'answer' ? '❓ มีคนถามคุณ! ตอบ ใช่/ไม่ใช่/อาจจะ' : s.gq.phase === 'guess' ? '🎯 ได้คำตอบแล้ว ทายได้ 1 ครั้ง' : '🫵 ตาคุณ! ถามเพื่อน หรือทายเลย')
       : uc.phase === 'white' ? '🤍 คุณโดนโหวตออก! ทายคำของชาวบ้านให้ถูกเพื่อชนะ'
       : '🫵 ถึงตาคุณใบ้คำแล้ว!';
@@ -218,6 +219,10 @@ function notify(prev, s) {
   }
   if (uc && uc.phase === 'vote' && (!prev || !prev.uc || prev.uc.phase !== 'vote')) {
     toast(uc.alive.includes(s.me) ? '🗳️ ถึงเวลาโหวต! แตะการ์ดคนที่สงสัย' : '🗳️ เพื่อนกำลังโหวต', [80, 40, 80]);
+  }
+  const hc = s.mode === 'hues' && s.hc;
+  if (hc && hc.giver !== s.me && hc.cone != null && (!prev || !prev.hc || prev.hc.phase !== hc.phase)) {
+    toast(hc.cone === 0 ? '📍 คนใบ้ใบ้แล้ว! แตะช่องสีบนกระดานเพื่อวางหมุด' : '📍 ใบ้เพิ่มแล้ว! วางหมุดที่ 2', [80, 40, 80]);
   }
   if (prev && s.state === 'reveal' && prev.state === 'playing') confetti();
   if (prev && s.state === 'reveal' && prev.state === 'playing') toast('🏁 จบรอบ! ดูเฉลยและอันดับได้เลย', [100, 60, 100]);
@@ -1001,8 +1006,9 @@ setInterval(tickKick, 250);
 $('kickYesBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: true }));
 $('kickNoBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: false }));
 
-const MODE_NAME = { oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
+const MODE_NAME = { hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
+  hues: 'Hues and Cues — คนใบ้เลือก 1 สีจากกระดาน 480 สี แล้วใบ้ 1 คำ (ห้ามชื่อสี) ทุกคนวางหมุด → ใบ้เพิ่มอีกไม่เกิน 2 คำ วางหมุดที่ 2 → เฉลย! ตรงช่อง 3 · ใกล้ 2 · ห่าง 2 ช่อง 1 (2 คนขึ้นไป)',
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
   oldmaid: 'แจกไพ่จนหมด (มีไพ่ 👵 อีแก่ 1 ใบที่ไม่มีคู่) จับคู่เลขเดียวกันทิ้ง ผลัดกันดึงไพ่จากมือคนถัดไปโดยไม่เห็นหน้าไพ่ คนสุดท้ายที่ถืออีแก่แพ้ โดนลงโทษ! (2–10 คน)',
@@ -1031,6 +1037,7 @@ function render() {
   const shMode = s.mode === 'sheriff' && s.sh && s.state !== 'lobby';
   const pkMode = s.mode === 'poker' && s.pk && s.state !== 'lobby';
   const omMode = s.mode === 'oldmaid' && s.om && s.state !== 'lobby';
+  const hcMode = s.mode === 'hues' && s.hc && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -1064,7 +1071,10 @@ function render() {
   $('pkStage').hidden = true;
   $('omBar').hidden = true;
   $('omStage').hidden = true;
-  if (omMode) renderOldMaid(s, me, isHost);
+  $('hcBar').hidden = true;
+  $('hcStage').hidden = true;
+  if (hcMode) renderHues(s, me, isHost);
+  else if (omMode) renderOldMaid(s, me, isHost);
   else if (pkMode) renderPoker(s, me, isHost);
   else if (shMode) renderSheriff(s, me, isHost);
   else if (tlMode) renderTimeline(s, me, isHost);
@@ -1104,6 +1114,7 @@ const GAMES = [
   { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
   { mode: 'sheriff', emoji: '👮', name: 'ผู้ตรวจการ', short: 'ลักลอบของเถื่อน ติดสินบน', min: 3 },
   { mode: 'oldmaid', emoji: '👵', name: 'อีแก่กินน้ำ', short: 'ดึงไพ่จับคู่ อย่าติดอีแก่!', min: 2 },
+  { mode: 'hues', emoji: '🎨', name: 'ใบ้สี', short: 'Hues and Cues ใบ้คำ ทายสี', min: 2 },
   { mode: 'poker', emoji: '🃏', name: 'โป๊กเกอร์แมว', short: 'Texas Hold\'em ไพ่ธีมแมว 😺', min: 2 },
 ];
 $('modeSeg').innerHTML = GAMES.map((g) => `<button type="button" class="game-card" data-mode="${g.mode}" role="radio">
@@ -1138,7 +1149,7 @@ function renderHost(s, isHost) {
     b.tabIndex = isHost ? 0 : -1;
   }
   $('modeHint').innerHTML = `<b>${game.emoji} ${game.name}</b> — ${esc(MODE_HINT[s.nextMode])}`;
-  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid'].includes(s.nextMode);
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues'].includes(s.nextMode);
   $('whiteRow').hidden = s.nextMode !== 'undercover';
   for (const id of ['categorySelect', 'timeSelect', 'whiteCheck']) $(id).disabled = !isHost;
   $('startBtn').hidden = !isHost;
@@ -1362,6 +1373,207 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
 }
+
+// ---------- ใบ้สี (Hues and Cues) ----------
+const HC_COLS = 30;
+const HC_ROWS = 16;
+const HC_ROWN = 'ABCDEFGHIJKLMNOP';
+// สีของแต่ละช่อง: คอลัมน์ = เฉดสีไล่รอบวงล้อ · แถวบน = อ่อน → แถวล่าง = เข้ม
+function hcColor(i) {
+  const r = Math.floor(i / HC_COLS);
+  const c = i % HC_COLS;
+  const hue = Math.round((c / HC_COLS) * 360);
+  const light = Math.round(90 - (r / (HC_ROWS - 1)) * 68);
+  const sat = Math.round(55 + 40 * Math.sin((Math.PI * (r + 1)) / (HC_ROWS + 1)));
+  return `hsl(${hue} ${sat}% ${light}%)`;
+}
+const hcName = (i) => `${HC_ROWN[Math.floor(i / HC_COLS)]}${(i % HC_COLS) + 1}`;
+const hcDist = (a, b) => Math.max(Math.abs(Math.floor(a / HC_COLS) - Math.floor(b / HC_COLS)), Math.abs((a % HC_COLS) - (b % HC_COLS)));
+let hcSel = null; // ช่องที่ฉันแตะเลือกไว้ (ยังไม่วาง)
+let hcPick = null; // สีที่คนใบ้เลือก
+let hcSeqSeen = null;
+let hcScrolled = null;
+let hcFocus = null; // ช่องที่ต้องเลื่อนกระดานไปให้เห็น (เช่น สีที่คนใบ้เพิ่งเลือก)
+
+function renderHues(s, me, isHost) {
+  const h = s.hc;
+  const over = h.phase === 'over';
+  const show = h.phase === 'show';
+  const amGiver = h.giver === s.me;
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const giverName = amGiver ? 'คุณ' : nameOf(h.giver);
+  if (hcSeqSeen !== h.seq) {
+    hcSeqSeen = h.seq;
+    hcSel = null;
+    if (h.phase !== 'clue1') hcPick = null;
+  }
+  if (h.phase === 'clue1' && amGiver && h.options && !h.options.includes(hcPick)) hcPick = null;
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('myCard').innerHTML = '';
+  $('turnStrip').hidden = true;
+  $('hcStage').hidden = false;
+
+  // ป้าย
+  const cone = h.cone;
+  if (over) $('banner').textContent = h.winners && h.winners.length ? `🏆 ${h.winners.join(', ')} ชนะเกมใบ้สี!` : '🏁 จบเกมใบ้สี';
+  else if (show) $('banner').textContent = `🎯 เฉลยของ ${giverName}: ช่อง ${hcName(h.target)}`;
+  else if (h.phase === 'clue1') $('banner').textContent = amGiver ? '🎨 ตาคุณใบ้! เลือก 1 สี แล้วใบ้ 1 คำ' : `🎨 ${giverName} กำลังเลือกสีและคิดคำใบ้…`;
+  else if (h.phase === 'clue2') $('banner').textContent = amGiver ? '💬 ใบ้เพิ่มได้อีกไม่เกิน 2 คำ' : `💬 ${giverName} กำลังคิดคำใบ้ที่ 2…`;
+  else $('banner').textContent = amGiver ? `⏳ เพื่อนกำลังวางหมุดที่ ${cone + 1}` : `📍 วางหมุดที่ ${cone + 1} — แตะช่องสีที่ตรงกับคำใบ้`;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = over ? 'ดูคะแนนรวมในตารางอันดับ' : `ตาใบ้ที่ ${h.turnNo}/${h.totalTurns} · คนใบ้: <b>${esc(giverName)}</b>${h.queue.length ? ` · ต่อไป: ${esc(nameOf(h.queue[0]))}` : ''}`;
+
+  // คำใบ้
+  $('hcClues').innerHTML = h.clues.length
+    ? h.clues.map((c, i) => `<span class="hc-clue"><small>ใบ้ ${i + 1}</small>${esc(c)}</span>`).join('')
+    : `<span class="hc-clue muted"><small>คำใบ้</small>…</span>`;
+
+  // กระดาน
+  const coneAt = {};
+  for (const [pid, cs] of Object.entries(h.cones)) {
+    cs.forEach((c, k) => { if (c != null) (coneAt[c] = coneAt[c] || []).push({ pid, k }); });
+  }
+  const mine = h.cones[s.me] || [];
+  const canPlace = !amGiver && cone != null && s.players.some((p) => p.id === s.me);
+  const open = show || over;
+  let html = '<span class="hc-corner"></span>' + Array.from({ length: HC_COLS }, (_, c) => `<span class="hc-lab">${c + 1}</span>`).join('');
+  for (let r = 0; r < HC_ROWS; r++) {
+    html += `<span class="hc-lab">${HC_ROWN[r]}</span>`;
+    for (let c = 0; c < HC_COLS; c++) {
+      const i = r * HC_COLS + c;
+      const cls = ['hc-cell'];
+      let inner = '';
+      if (h.target != null) {
+        const d = hcDist(i, h.target);
+        if (d === 0) { cls.push('hc-t'); inner = '★'; }
+        else if (open && d === 1) cls.push('hc-z1');
+        else if (open && d === 2) cls.push('hc-z2');
+      }
+      if (amGiver && h.phase === 'clue1' && h.options) {
+        const n = h.options.indexOf(i);
+        if (n !== -1) { cls.push('hc-opt'); if (i === hcPick) cls.push('hc-t'); inner = `${n + 1}`; }
+      }
+      if (i === hcSel) cls.push('hc-sel');
+      const cs = coneAt[i];
+      if (cs) inner = cs.map((x) => `<i class="hc-cone ${x.pid === s.me ? 'me' : ''}" title="${esc(nameOf(x.pid))}">${avatarLetter(nameOf(x.pid))}</i>`).join('');
+      if (canPlace) cls.push('tap');
+      html += `<button type="button" class="${cls.join(' ')}" data-cell="${i}" style="background:${hcColor(i)}" aria-label="${hcName(i)}">${inner}</button>`;
+    }
+  }
+  $('hcBoard').innerHTML = html;
+  // เฉลย → เลื่อนกระดานไปที่ช่องเฉลย (ครั้งเดียวต่อตา) / คนใบ้เลือกสี → เลื่อนไปที่สีนั้น
+  if (open && h.target != null && hcScrolled !== h.seq) {
+    hcScrolled = h.seq;
+    hcFocus = h.target;
+  }
+  if (hcFocus != null) {
+    const cell = $('hcBoard').querySelector(`[data-cell="${hcFocus}"]`);
+    if (cell) $('hcWrap').scrollLeft = cell.offsetLeft - $('hcWrap').clientWidth / 2;
+    hcFocus = null;
+  }
+
+  // ผลเฉลย
+  if (open && h.result) {
+    const rows = s.players.filter((p) => p.id !== h.giver).map((p) => {
+      const cs = (h.cones[p.id] || []).filter((c) => c != null);
+      const pts = h.result.pts[p.id] || 0;
+      return `<li><span>${avatar(p.name, 'sm')}${esc(p.name)}</span><span class="muted">${cs.map(hcName).join(', ') || 'ไม่ได้วาง'}</span><b>+${pts}</b></li>`;
+    }).join('');
+    $('hcResult').innerHTML = `<div class="card hc-result">
+      <div class="hc-result-head"><span class="hc-swatch lg" style="background:${hcColor(h.target)}"></span>
+      <div><b>${hcName(h.target)}</b><br><small class="muted">${h.clues.map((c) => `“${esc(c)}”`).join(' → ')}</small></div></div>
+      <ul class="hc-res">${rows}<li><span>🎨 ${esc(nameOf(h.giver))} (คนใบ้)</span><span class="muted">หมุดในกรอบ 3×3</span><b>+${h.result.giverPts}</b></li></ul></div>`;
+  } else $('hcResult').innerHTML = '';
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
+    const cs = h.cones[p.id] || [];
+    let status = p.id === h.giver ? '🎨 คนใบ้' : cone != null ? (cs[cone] != null ? '✅ วางแล้ว' : '🤔 กำลังเลือก…') : open && h.result ? `+${h.result.pts[p.id] || 0} แต้ม` : '';
+    if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+    const cls = ['player', !p.connected && 'off', p.id === h.giver && 'selected'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+      <span class="score">${p.score} แต้ม</span>
+      <div class="name">${avatar(p.name)}${esc(p.name)}</div>
+      <div class="status">${status}</div>
+    </div>`;
+  }).join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่าง
+  const bar = $('hcBar');
+  bar.hidden = over;
+  if (over) return;
+  $('hcOptions').hidden = true;
+  $('hcClueForm').hidden = true;
+  $('hcPlaceRow').hidden = true;
+  $('hcPassBtn').hidden = true;
+  const guessers = s.players.filter((p) => p.id !== h.giver);
+  if (amGiver && (h.phase === 'clue1' || h.phase === 'clue2')) {
+    $('hcInfoText').textContent = h.phase === 'clue1' ? (hcPick == null ? '1️⃣ เลือกสีที่จะใบ้ (แตะสีด้านล่าง หรือเลข 1–4 บนกระดาน)' : `2️⃣ ใบ้ช่อง ${hcName(hcPick)} ด้วย 1 คำ (ห้ามชื่อสี/พิกัด)`) : 'ใบ้เพิ่มไม่เกิน 2 คำ (เว้นวรรคได้ 1 ครั้ง)';
+    if (h.phase === 'clue1' && h.options) {
+      $('hcOptions').hidden = false;
+      $('hcOptions').innerHTML = h.options.map((c, n) => `<button type="button" class="hc-optbtn ${c === hcPick ? 'on' : ''}" data-pick="${c}"><span class="hc-swatch" style="background:${hcColor(c)}"></span>${n + 1} · ${hcName(c)}</button>`).join('');
+    }
+    $('hcClueForm').hidden = false;
+    $('hcClueInput').placeholder = h.phase === 'clue1' ? 'ใบ้ 1 คำ เช่น ทะเล' : 'ใบ้เพิ่ม เช่น ทะเลลึก ตอนเย็น';
+    $('hcClueBtn').disabled = h.phase === 'clue1' && hcPick == null;
+  } else if (canPlace) {
+    const placed = mine[cone];
+    $('hcInfoText').innerHTML = `ใบ้: <b>${h.clues.map(esc).join(' · ')}</b>${placed != null ? ` · วางแล้วที่ ${hcName(placed)} (ย้ายได้)` : ''}`;
+    $('hcPlaceRow').hidden = false;
+    const sel = hcSel != null ? hcSel : placed;
+    $('hcSelSwatch').style.background = sel != null ? hcColor(sel) : 'transparent';
+    $('hcSelText').textContent = hcSel != null ? `ช่อง ${hcName(hcSel)}` : placed != null ? `หมุดที่ ${cone + 1}: ${hcName(placed)}` : 'แตะช่องบนกระดาน';
+    $('hcPlaceBtn').disabled = hcSel == null;
+    $('hcPlaceBtn').textContent = placed != null ? '📍 ย้ายมาที่นี่' : '📍 วางหมุด';
+  } else if (amGiver && cone != null) {
+    const done = guessers.filter((p) => (h.cones[p.id] || [])[cone] != null).length;
+    $('hcInfoText').textContent = `⏳ เพื่อนวางหมุดแล้ว ${done}/${guessers.length} คน`;
+    $('hcPassBtn').hidden = false;
+    $('hcPassBtn').textContent = '⏭️ ไม่รอแล้ว';
+  } else if (show) {
+    $('hcInfoText').textContent = amGiver ? `คุณได้ +${h.result ? h.result.giverPts : 0} แต้มจากการใบ้` : `คุณได้ +${(h.result && h.result.pts[s.me]) || 0} แต้มตานี้`;
+    $('hcPassBtn').hidden = !(amGiver || isHost);
+    $('hcPassBtn').textContent = '⏭️ ตาถัดไป';
+  } else {
+    $('hcInfoText').textContent = `รอ ${giverName} ใบ้…`;
+    if (isHost && cone != null) { $('hcPassBtn').hidden = false; $('hcPassBtn').textContent = '⏭️ ไม่รอแล้ว'; }
+  }
+}
+function avatarLetter(name) {
+  const n = String(name || '?');
+  return esc((n.replace(/^[เแโใไ]+/, '')[0] || n[0] || '?').toUpperCase());
+}
+$('hcBoard').addEventListener('click', (e) => {
+  const b = e.target.closest('.hc-cell');
+  if (!b || !state || !state.hc) return;
+  const h = state.hc;
+  const i = Number(b.dataset.cell);
+  if (h.giver === state.me && h.phase === 'clue1' && h.options && h.options.includes(i)) { hcPick = i; render(); return; }
+  if (h.giver === state.me || h.cone == null) return;
+  hcSel = hcSel === i ? null : i;
+  render();
+});
+$('hcOptions').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-pick]');
+  if (!b) return;
+  hcPick = Number(b.dataset.pick);
+  hcFocus = hcPick;
+  render();
+});
+$('hcClueForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = $('hcClueInput').value.trim();
+  if (!text) return;
+  const res = await act($('hcClueBtn'), 'hcClue', { text, pick: hcPick });
+  if (res && !res.error) $('hcClueInput').value = '';
+});
+$('hcPlaceBtn').addEventListener('click', async () => {
+  if (hcSel == null) return;
+  await act($('hcPlaceBtn'), 'hcPlace', { cell: hcSel });
+});
+$('hcPassBtn').addEventListener('click', () => act($('hcPassBtn'), 'pass', {}));
 
 // ---------- อีแก่กินน้ำ ----------
 function renderOldMaid(s, me, isHost) {
@@ -2184,6 +2396,10 @@ function feedItem(f) {
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
     case 'om-draw': return `<li class="${f.pairRank ? 'ok' : 'muted'}">🃏 <b>${esc(f.name)}</b> ดึงจาก ${esc(f.from)}${f.pairRank ? ` → ได้คู่ ${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[f.pairRank] || f.pairRank)} 🎉` : ''}</li>`;
+    case 'hc-clue': return `<li>💬 <b>${esc(f.name)}</b> ใบ้${f.n === 2 ? 'เพิ่ม' : ''}: “${esc(f.text)}”</li>`;
+    case 'hc-show': return `<li class="ok"><span class="hc-swatch sm" style="background:${hcColor(f.target)}"></span> เฉลยของ <b>${esc(f.name)}</b>: ${f.cell}${f.best ? ` · ใกล้สุด ${esc(f.best)} +${f.bestPts}` : ''} · คนใบ้ +${f.giverPts}</li>`;
+    case 'hc-skip': return `<li class="muted">⏭️ ${esc(f.name)} ออกจากห้อง ข้ามตาใบ้</li>`;
+    case 'hc-over': return f.winners && f.winners.length ? `<li class="ok">🏆 ใบ้สีจบแล้ว! ผู้ชนะ: <b>${f.winners.map(esc).join(', ')}</b></li>` : '<li class="muted">🏁 จบเกมใบ้สี</li>';
     case 'om-over': return f.loser ? `<li class="bad">👵 <b>${esc(f.loser)}</b> ติดอีแก่! โดนลงโทษ 😹</li>` : '<li class="muted">🏁 จบเกม</li>';
     case 'pk-act': return `<li class="muted">🃏 <b>${esc(f.name)}</b> ${esc(f.label)}</li>`;
     case 'pk-win': return `<li class="ok">🏆 ${f.winners.map((w) => `<b>${esc(w.name)}</b> +${w.amount}${w.hand ? ` (${esc(w.hand)})` : ''}`).join(', ')}${f.uncontested ? ' — คนอื่นหมอบหมด' : ''}</li>`;
