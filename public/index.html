@@ -21,7 +21,7 @@
           <span>🎯</span><span>🕵️</span><span>❓</span><span>🧀</span><span>🎨</span><span>🟥</span><span>🎲</span><span>📅</span>
         </div>
         <h1>เกมปาร์ตี้<br /><span class="grad">กับเพื่อน</span></h1>
-        <p>8 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+        <p>11 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       </div>
       <form id="loginForm" class="card login-card">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" placeholder="เช่น มิก" required /></label>
@@ -60,6 +60,14 @@
         </div>
       </header>
 
+      <div id="kickCard" class="kick-card" hidden>
+        <div id="kickText" class="kick-text"></div>
+        <div class="kick-meter"><i id="kickFill"></i></div>
+        <div id="kickActions" class="kick-actions">
+          <button id="kickYesBtn" class="small" type="button">✅ เตะ</button>
+          <button id="kickNoBtn" class="secondary small" type="button">❌ ไม่เตะ</button>
+        </div>
+      </div>
       <div id="banner" class="banner"></div>
       <div id="subBanner" class="sub-banner" hidden></div>
       <div id="timer" class="timer" hidden aria-live="off">
@@ -105,6 +113,9 @@
             <p id="waitHost" class="wait-host" hidden>รอหัวห้องกดเริ่มเกม…</p>
             <p id="hostError" class="error"></p>
           </div>
+
+          <!-- อีแก่กินน้ำ: มือของคนที่จะดึง + ผลการดึง -->
+          <div id="omStage" class="om-stage" hidden></div>
 
           <!-- โป๊กเกอร์: โต๊ะ (ไพ่กลาง + กองเงิน + ผล) -->
           <div id="pkStage" class="pk-stage" hidden></div>
@@ -191,6 +202,15 @@
           </div>
         </div>
       </form>
+
+      <!-- แถบล่างจอของอีแก่กินน้ำ: ไพ่ในมือ + สับไพ่ -->
+      <div id="omBar" class="guessbar" hidden>
+        <div class="wait-turn">
+          <span id="omInfoText"></span>
+          <button id="omShuffleBtn" type="button" class="secondary small">🔀 สับไพ่</button>
+        </div>
+        <div id="omHand" class="hand-fan"></div>
+      </div>
 
       <!-- แถบล่างจอของโป๊กเกอร์: ไพ่ในมือ + มือไพ่ + ปุ่มเดิมพัน -->
       <div id="pkBar" class="guessbar" hidden>

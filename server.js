@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,9 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'poker') {
+  if (room.mode === 'oldmaid') {
+    label = '👵 แจกไพ่แล้ว! ทิ้งคู่ให้อัตโนมัติ — ระวังได้อีแก่นะ 😹';
+  } else if (room.mode === 'poker') {
     label = `🃏 มือที่ ${room.pk.handNo} — แจกไพ่แล้ว! 😺`;
   } else if (room.mode === 'sheriff') {
     const sh = room.players.get(room.shSheriff());
@@ -101,6 +103,7 @@ function syncCanvas(room) {
 }
 
 function broadcast(room) {
+  if (settleKick(room)) return; // โหวตเตะจบ → settleKick broadcast ให้แล้ว
   syncCanvas(room);
   syncTurn(room);
   syncTimer(room);
@@ -108,6 +111,44 @@ function broadcast(room) {
     const s = socketsOf.get(p.id);
     if (s && p.connected) s.emit('sync', { view: room.viewFor(p.id) });
   }
+}
+
+// โหวตเตะ: ตั้งเวลาหมดโหวต / นับผล แล้วเตะออกถ้าผ่าน
+function syncKickTimer(room) {
+  const id = room.kick ? room.kick.id : null;
+  if (room._kickTimerFor === id) return;
+  clearTimeout(room._kickTimer);
+  room._kickTimerFor = id;
+  room._kickTimer = id ? setTimeout(() => settleKick(room, true), room.kick.endsAt - Date.now()) : null;
+}
+
+function settleKick(room, expired = false) {
+  const res = expired ? room.kickExpire() : room.kickCheck();
+  syncKickTimer(room);
+  if (!res) return false;
+  const { target, name } = room.kickLast;
+  if (res === 'pass') {
+    kickOut(room, target);
+    sendChat(room, room.systemChat(`🚫 ${name} ถูกโหวตออกจากห้อง`));
+  } else if (res === 'fail') {
+    sendChat(room, room.systemChat(`🙅 โหวตเตะ ${name} ไม่ผ่าน`));
+  }
+  broadcast(room);
+  scheduleAwaySkip(room);
+  return true;
+}
+
+function kickOut(room, id) {
+  const p = room.players.get(id);
+  if (!p) return;
+  clearTimers(id);
+  const s = socketsOf.get(id);
+  socketsOf.delete(id);
+  if (s) {
+    s.emit('kicked', { code: room.code });
+    s.leave(room.code);
+  }
+  room.removePlayer(id);
 }
 
 function sendChat(room, msg) {
@@ -217,6 +258,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'oldmaid') {
+            r.startOldMaid();
           } else if (r.nextMode === 'poker') {
             r.startPoker();
           } else if (r.nextMode === 'sheriff') {
@@ -260,6 +303,12 @@ io.on('connection', (socket) => {
           }
           if (r.mode !== 'undercover' || r.state !== 'playing' || r.uc.phase !== 'vote') throw new GameError('ตอนนี้ไม่ใช่รอบโหวต');
           r.ucResolveVotes();
+          break;
+        case 'omDraw':
+          out.last = r.omDraw(me.id, data.index);
+          break;
+        case 'omShuffle':
+          r.omShuffle(me.id);
           break;
         case 'pkAct':
           r.pkAct(me.id, String(data.move || ''), data.to);
@@ -320,6 +369,15 @@ io.on('connection', (socket) => {
           if (!isHost) throw new GameError('เฉพาะหัวห้องเท่านั้น');
           if (r.state !== 'playing') throw new GameError('รอบนี้จบไปแล้ว');
           r.endRound();
+          break;
+        case 'kickStart': {
+          const t = r.players.get(String(data.targetId || ''));
+          r.kickStart(me.id, String(data.targetId || ''));
+          sendChat(r, r.systemChat(`🗳️ ${me.name} เสนอโหวตเตะ ${t.name} ออกจากห้อง`));
+          break;
+        }
+        case 'kickVote':
+          r.kickVote(me.id, !!data.yes);
           break;
         case 'pass':
           if (r.state !== 'playing') throw new GameError('ตอนนี้ไม่ได้อยู่ระหว่างเล่น');

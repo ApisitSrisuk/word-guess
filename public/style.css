@@ -712,3 +712,42 @@ body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--
 .pcard.sm .pc-corner i { font-size: 9px; }
 .pcard.sm .pc-corner.br { display: none; }
 .pcard.sm .pc-center { position: absolute; bottom: 2px; right: 2px; font-size: 12px; }
+
+/* ---------- อีแก่กินน้ำ ---------- */
+.om-stage { margin-bottom: 14px; }
+.om-stage .card { margin: 0; }
+.om-fan { display: flex; justify-content: flex-start; padding: 14px 10px 6px; overflow-x: auto; }
+.om-fan > :first-child { margin-left: auto; }
+.om-fan > :last-child { margin-right: auto; }
+.om-back {
+  flex: 0 0 auto; width: 56px; height: 80px; margin-left: -18px; padding: 0; border-radius: 9px;
+  background: repeating-linear-gradient(45deg, #3b5b7a 0 6px, #46698b 6px 12px); color: #fffdf8;
+  border: 3px solid #fffdf8; box-shadow: 0 2px 6px rgba(60, 50, 30, .2); font-size: 1.3rem;
+  transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 3deg)); transform-origin: 50% 120%; transition: transform .15s;
+}
+.om-back:first-child { margin-left: 0; }
+.om-back:not(:disabled):hover { transform: translateY(-8px); }
+.om-back.armed { transform: translateY(-16px); background: var(--bad); border-color: #fffdf8; }
+.om-back.armed b { font-size: .85rem; }
+.om-result .pk-mini { margin: 10px 0; }
+.fan-slot { flex: 0 0 auto; margin-left: -14px; transform: rotate(calc((var(--i) - (var(--n) - 1) / 2) * 3deg)); transform-origin: 50% 120%; }
+.fan-slot:first-child { margin-left: 0; }
+.pcard.joker { background: #fff4e6; border: 2px solid #c9a227; color: #7a5a00; }
+.pcard.joker .pc-joker { position: absolute; bottom: calc(var(--w) * .06); font-size: calc(var(--w) * .2); font-weight: 700; }
+.pcard.sm.joker .pc-joker { display: none; }
+.turn-strip li.done { opacity: .5; }
+
+/* ---- โหวตเตะ ---- */
+.kick-card { background: var(--card); border: 1.5px dashed var(--bad); border-radius: 12px; padding: 10px 12px; margin: 0 0 12px; text-align: center; }
+.kick-text { font-size: .95rem; line-height: 1.5; }
+.kick-text small { color: var(--muted); }
+.kick-meter { height: 4px; background: var(--line); border-radius: 2px; margin: 8px 0; overflow: hidden; }
+.kick-meter i { display: block; height: 100%; width: 100%; background: var(--bad); transition: width .25s linear; }
+.kick-actions { display: flex; gap: 8px; justify-content: center; }
+.kick-actions[hidden] { display: none !important; }
+.kick-actions button { flex: 1; max-width: 160px; }
+#kickYesBtn { background: var(--bad); color: #fff; border-color: var(--bad); }
+.kick-actions button.picked { outline: 3px solid var(--ink); outline-offset: 2px; }
+.lb-kick { background: none; border: 0; padding: 2px 4px; margin-left: 4px; font-size: .85rem; opacity: .45; cursor: pointer; box-shadow: none; min-height: 0; width: auto; }
+.lb-kick:hover, .lb-kick.armed { opacity: 1; }
+.lb-kick.armed { font-size: .75rem; color: var(--bad); }

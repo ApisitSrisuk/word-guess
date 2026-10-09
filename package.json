@@ -1,13 +1,13 @@
 {
   "name": "word-guess-game",
   "version": "3.0.0",
-  "description": "เกมปาร์ตี้กับเพื่อน — ทายคำ, ใครคือสปาย, ทายคำตรงกลาง, หัวขโมยชีส, วาดภาพทายคำ, Codenames, เต๋าโกหก, Timeline, ผู้ตรวจการ, โป๊กเกอร์แมว เล่นบนมือถือ",
+  "description": "เน€เธเธกเธเธฒเธฃเนเธ•เธตเนเธเธฑเธเน€เธเธทเนเธญเธ โ€” เธ—เธฒเธขเธเธณ, เนเธเธฃเธเธทเธญเธชเธเธฒเธข, เธ—เธฒเธขเธเธณเธ•เธฃเธเธเธฅเธฒเธ, เธซเธฑเธงเธเนเธกเธขเธเธตเธช, เธงเธฒเธ”เธ เธฒเธเธ—เธฒเธขเธเธณ, Codenames, เน€เธ•เนเธฒเนเธเธซเธ, Timeline, เธเธนเนเธ•เธฃเธงเธเธเธฒเธฃ, เนเธเนเธเน€เธเธญเธฃเนเนเธกเธง, เธญเธตเนเธเนเธเธดเธเธเนเธณ เน€เธฅเนเธเธเธเธกเธทเธญเธ–เธทเธญ",
   "private": true,
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test": "node test.js && node test-undercover.js && node test-center.js && node test-cheese.js && node test-draw.js && node test-codenames.js && node test-liar.js && node test-timeline.js && node test-sheriff.js && node test-poker.js && node test-server.js && node test-draw-server.js"
+    "test": "node test.js && node test-undercover.js && node test-center.js && node test-cheese.js && node test-draw.js && node test-codenames.js && node test-liar.js && node test-timeline.js && node test-sheriff.js && node test-poker.js && node test-oldmaid.js && node test-kickvote.js && node test-server.js && node test-draw-server.js"
   },
   "dependencies": {
     "express": "^4.21.2",
