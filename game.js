@@ -54,6 +54,7 @@ class Room {
     this.pk = null; // โป๊กเกอร์
     this.om = null; // อีแก่กินน้ำ
     this.hc = null; // ใบ้สี (Hues and Cues)
+    this.sk = null; // แข่งวาด (Catch Sketch)
     this.nextMode = 'guess'; // เกมที่หัวห้องเลือกไว้สำหรับรอบหน้า (ทุกคนเห็น)
     // เกมทายคำ: ตาเรา = ถามใช่/ไม่ใช่เพื่อน 1 คน → เพื่อนตอบ → ทายคำของเพื่อนคนนั้น 1 ครั้ง (หรือทายเลยไม่ต้องถาม)
     this.gq = { phase: 'ask', targetId: null, turnNo: 0, qa: {} };
@@ -72,6 +73,7 @@ class Room {
     if (this.state === 'playing' && this.mode === 'oldmaid') return `om|${this.round}`;
     // ใบ้สี: ล้างแชทเมื่อเปลี่ยนคนใบ้
     if (this.state === 'playing' && this.mode === 'hues') return `hc|${this.round}|${this.hc.turnNo}`;
+    if (this.state === 'playing' && this.mode === 'sketch') return `sk|${this.round}|${this.sk.turnNo}`;
     // โป๊กเกอร์: ล้างแชทเมื่อขึ้นมือใหม่ (ไม่ล้างทุกการเดิมพัน จะได้แซวกันได้)
     if (this.state === 'playing' && this.mode === 'poker') return `pk|${this.round}|${this.pk.handNo}`;
     if (this.state === 'playing' && this.mode === 'sheriff') return this.shChatKey();
@@ -95,6 +97,7 @@ class Room {
     if (this.mode === 'poker') return this.state === 'playing' ? this.pkTimerKey() : null;
     if (this.mode === 'oldmaid') return this.state === 'playing' ? this.omTimerKey() : null;
     if (this.mode === 'hues') return this.state === 'playing' ? this.hcTimerKey() : null;
+    if (this.mode === 'sketch') return this.state === 'playing' ? this.skTimerKey() : null;
     return this.turnLimit ? this.turnKey() : null;
   }
 
@@ -108,6 +111,7 @@ class Room {
     if (this.mode === 'poker') return this.pkTimerMs();
     if (this.mode === 'oldmaid') return this.omTimerMs();
     if (this.mode === 'hues') return this.hcTimerMs();
+    if (this.mode === 'sketch') return this.skTimerMs();
     return this.turnLimit * 1000;
   }
 
@@ -123,6 +127,7 @@ class Room {
     if (this.mode === 'poker') return `pk|${this.round}|${this.pk.seq}|${this.pk.phase}`;
     if (this.mode === 'oldmaid') return `om|${this.round}|${this.om.seq}|${this.om.phase}`;
     if (this.mode === 'hues') return `hc|${this.round}|${this.hc.seq}|${this.hc.phase}`;
+    if (this.mode === 'sketch') return `sk|${this.round}|${this.sk.seq}|${this.sk.phase}`;
     if (this.mode === 'center') {
       const c = this.ct;
       return `c|${this.round}|${c.turnNo}|${c.phase}|${c.qa.length}|${this.ctCurrent()}`;
@@ -150,6 +155,7 @@ class Room {
     if (this.mode === 'poker') return this.pkTimeout();
     if (this.mode === 'oldmaid') return this.omTimeout();
     if (this.mode === 'hues') return this.hcTimeout();
+    if (this.mode === 'sketch') return this.skTimeout();
     if (this.mode === 'undercover') {
       const u = this.uc;
       if (u.phase === 'vote') {
@@ -218,6 +224,7 @@ class Room {
     if (this.mode === 'undercover') return this.ucCheckVotes();
     if (this.mode === 'cheese') return this.chCheckVotes();
     if (this.mode === 'hues' && this.state === 'playing') return this.hcCheckPlaced();
+    if (this.mode === 'sketch' && this.state === 'playing') return this.skCheckStop();
     return false;
   }
 
@@ -258,6 +265,7 @@ class Room {
     if (this.mode === 'poker') return this.pkAutoSkip();
     if (this.mode === 'oldmaid') return this.omAutoSkip();
     if (this.mode === 'hues') return this.hcAutoSkip();
+    if (this.mode === 'sketch') return this.skAutoSkip();
     if (this.mode === 'draw') {
       const d = this.players.get(this.drCurrent());
       return d && !d.connected ? this.drPass(null) : false;
@@ -283,6 +291,7 @@ class Room {
     if (this.mode === 'poker') return this.pkCurrent();
     if (this.mode === 'oldmaid') return this.omCurrent();
     if (this.mode === 'hues') return this.hcCurrent();
+    if (this.mode === 'sketch') return this.skCurrent();
     if (this.state === 'playing' && this.gq.phase === 'answer') return this.gq.targetId; // รอเพื่อนตอบ
     return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
   }
@@ -323,6 +332,7 @@ class Room {
     if (this.mode === 'poker') return false; // ต้องเลือกเอง (หมดเวลา = ผ่าน/หมอบให้)
     if (this.mode === 'oldmaid') return false; // ต้องดึงเอง (หมดเวลา = สุ่มดึงให้)
     if (this.mode === 'hues') return this.hcPass(id); // คนใบ้/หัวห้องกดไปต่อ ไม่ต้องรอหมุดครบ
+    if (this.mode === 'sketch') return this.skPass(id); // คนทายยอมแพ้ภาพนี้ / หัวห้องกดหยุดวาด
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
@@ -337,7 +347,9 @@ class Room {
     if (!p) throw new Error('ไม่ได้อยู่ในห้อง');
     text = String(text || '').trim().slice(0, 200);
     if (!text) throw new Error('ข้อความว่าง');
-    const secret = this.mode === 'draw'
+    const secret = this.mode === 'sketch'
+      ? this.sk && this.sk.guesser !== id && this.sk.phase !== 'show' && this.sk.word
+      : this.mode === 'draw'
       ? this.dr && this.dr.drawerId === id && this.dr.word
       : this.mode === 'undercover'
       ? this.uc && this.uc.alive.includes(id) && this.ucWordFor(id)
@@ -417,6 +429,7 @@ class Room {
     if (this.mode === 'poker') this.pkRemove(id);
     if (this.mode === 'oldmaid') this.omRemove(id);
     if (this.mode === 'hues') this.hcRemove(id);
+    if (this.mode === 'sketch') this.skRemove(id);
     this.players.delete(id);
     const idx = this.turnOrder.indexOf(id);
     if (idx !== -1) {
@@ -475,6 +488,7 @@ class Room {
     this.pk = null;
     this.om = null;
     this.hc = null;
+    this.sk = null;
     this.round += 1;
     this.state = 'playing';
     this.feed = [];
@@ -522,6 +536,7 @@ class Room {
     if (this.mode === 'sheriff') return this.shFinish();
     if (this.mode === 'poker') return this.pkFinish();
     if (this.mode === 'hues') return this.hcFinish();
+    if (this.mode === 'sketch') return this.skFinish();
     if (this.mode === 'oldmaid') {
       this.om.phase = 'over';
       this.state = 'reveal';
@@ -594,6 +609,7 @@ class Room {
       pk: this.mode === 'poker' && this.pk ? this.pkView(id) : null,
       om: this.mode === 'oldmaid' && this.om ? this.omView(id) : null,
       hc: this.mode === 'hues' && this.hc ? this.hcView(id) : null,
+      sk: this.mode === 'sketch' && this.sk ? this.skView(id) : null,
       kick: this.kickView(id),
       turnTotalMs: this.turnTotalMs || null,
       gq: this.mode === 'guess' ? { turnNo: this.gq.turnNo, phase: this.gq.phase, targetId: this.gq.targetId, asker: this.gAsker(), qa: this.gq.qa, answers: ANSWERS } : null,
@@ -635,6 +651,7 @@ require('./sheriff').install(Room, { shuffle });
 require('./poker').install(Room, { shuffle });
 require('./oldmaid').install(Room, { shuffle });
 require('./hues').install(Room, { shuffle });
+require('./sketch').install(Room, { shuffle, normalize, parseEntry, WORDS, CATEGORIES });
 require('./kickvote').install(Room);
 
 module.exports = { Room, CATEGORIES, TURN_LIMITS, normalize };

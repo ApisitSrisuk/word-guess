@@ -25,7 +25,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +52,10 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'hues') {
+  if (room.mode === 'sketch') {
+    const g = room.players.get(room.sk.guesser);
+    label = `⚡ ${g ? g.name : '?'} เป็นคนทาย — คนอื่นแข่งกันวาดให้ไว! (ห้ามบอกคำในแชท)`;
+  } else if (room.mode === 'hues') {
     const g = room.players.get(room.hc.giver);
     label = `🎨 ตาของ ${g ? g.name : '?'} ใบ้สี — คนใบ้ห้ามคุยในแชทนะ`;
   } else if (room.mode === 'oldmaid') {
@@ -261,6 +264,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'sketch') {
+            r.startSketch();
           } else if (r.nextMode === 'hues') {
             r.startHues();
           } else if (r.nextMode === 'oldmaid') {
@@ -311,6 +316,12 @@ io.on('connection', (socket) => {
           break;
         case 'omDraw':
           out.last = r.omDraw(me.id, data.index);
+          break;
+        case 'skDone':
+          out.rank = r.skDone(me.id, data.strokes);
+          break;
+        case 'skGuess':
+          out.correct = r.skGuess(me.id, data.text);
           break;
         case 'hcClue':
           r.hcClue(me.id, data.text, data.pick);
@@ -425,6 +436,17 @@ io.on('connection', (socket) => {
     ack(out);
     broadcast(r);
     scheduleAwaySkip(r);
+  });
+
+  // แข่งวาด: เก็บภาพล่าสุดของคนวาด (ยังไม่ให้ใครเห็น ไม่ต้อง broadcast)
+  socket.on('skDraw', (strokes, ack = () => {}) => {
+    if (!room || !me || room.mode !== 'sketch' || typeof ack !== 'function') return;
+    try {
+      room.skSetDrawing(me.id, strokes);
+      ack({ ok: true });
+    } catch (e) {
+      ack({ error: e.message });
+    }
   });
 
   // เส้นที่คนวาดกำลังวาด → ส่งต่อให้ทุกคนในห้องแบบสด

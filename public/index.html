@@ -21,7 +21,7 @@
           <span>🎯</span><span>🕵️</span><span>❓</span><span>🧀</span><span>🎨</span><span>🟥</span><span>🎲</span><span>📅</span>
         </div>
         <h1>เกมปาร์ตี้<br /><span class="grad">กับเพื่อน</span></h1>
-        <p>12 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+        <p>13 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       </div>
       <form id="loginForm" class="card login-card">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" placeholder="เช่น มิก" required /></label>
@@ -112,6 +112,28 @@
             <button id="startBtn" class="big-btn">🚀 เริ่มเกม</button>
             <p id="waitHost" class="wait-host" hidden>รอหัวห้องกดเริ่มเกม…</p>
             <p id="hostError" class="error"></p>
+          </div>
+
+          <!-- แข่งวาด: คำที่ต้องวาด + กระดานของฉัน + ภาพที่เปิดแล้ว -->
+          <div id="skStage" class="sk-stage" hidden>
+            <div id="skTop" class="sk-top"></div>
+            <div id="skPad" class="sk-pad" hidden>
+              <div class="canvas-wrap sk-canvas-wrap">
+                <canvas id="skCanvas" width="600" height="600" aria-label="กระดานวาดของฉัน"></canvas>
+                <div id="skLock" class="sk-lock" hidden></div>
+              </div>
+              <div class="draw-tools sk-tools">
+                <div class="colors" id="skColors"></div>
+                <div class="tool-row">
+                  <button type="button" class="secondary small sk-size on" data-size="0.01">●</button>
+                  <button type="button" class="secondary small sk-size" data-size="0.025">⬤</button>
+                  <button type="button" class="secondary small" id="skUndoBtn" title="ย้อนกลับ">↩️</button>
+                  <button type="button" class="secondary small" id="skClearBtn" title="ล้างจอ">🗑️</button>
+                </div>
+              </div>
+              <button type="button" id="skDoneBtn" class="big-btn">✅ วาดเสร็จ!</button>
+            </div>
+            <div id="skBoards" class="sk-boards"></div>
           </div>
 
           <!-- ใบ้สี: คำใบ้ + กระดานสี 480 ช่อง + ผลเฉลย -->
@@ -209,6 +231,18 @@
           </div>
         </div>
       </form>
+
+      <!-- แถบล่างจอของแข่งวาด: สถานะ + ช่องทาย -->
+      <div id="skBar" class="guessbar" hidden>
+        <div class="wait-turn">
+          <span id="skInfoText"></span>
+          <button id="skPassBtn" type="button" class="secondary small" hidden>⏭️</button>
+        </div>
+        <form id="skGuessForm" class="guess-row" hidden>
+          <input id="skGuessInput" maxlength="40" autocomplete="off" enterkeyhint="send" placeholder="พิมพ์คำตอบ" aria-label="คำตอบ" />
+          <button type="submit" id="skGuessBtn">🎯 ทาย</button>
+        </form>
+      </div>
 
       <!-- แถบล่างจอของใบ้สี: เลือกสี + ใบ้ / วางหมุด -->
       <div id="hcBar" class="guessbar" hidden>

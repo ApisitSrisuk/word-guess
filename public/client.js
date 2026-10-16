@@ -200,7 +200,8 @@ function notify(prev, s) {
   const turnKey = (v) => v && `${v.gq ? v.gq.turnNo + v.gq.phase : ''}|${v.round}|${v.uc ? v.uc.roundNo + v.uc.phase + v.uc.clues.length : ''}|${v.ct ? v.ct.turnNo + v.ct.phase : ''}|${v.hc ? v.hc.seq : ''}|${v.currentTurn}`;
   const ct = s.mode === 'center' && s.ct;
   if (s.state === 'playing' && s.currentTurn === s.me && (!prev || turnKey(prev) !== turnKey(s))) {
-    const msg = s.hc ? (s.hc.phase === 'clue1' ? '🎨 ตาคุณใบ้สี! เลือกสีแล้วใบ้ 1 คำ' : '💬 ใบ้เพิ่มได้อีกไม่เกิน 2 คำ')
+    const msg = s.sk ? '🔎 ถึงเวลาทาย! ดูภาพแล้วพิมพ์คำตอบ'
+      : s.hc ? (s.hc.phase === 'clue1' ? '🎨 ตาคุณใบ้สี! เลือกสีแล้วใบ้ 1 คำ' : '💬 ใบ้เพิ่มได้อีกไม่เกิน 2 คำ')
       : ct ? (ct.phase === 'answer' ? '❓ มีคำถามมา! ตอบ ใช่/ไม่ใช่ เลย' : ct.phase === 'guess' ? '🎯 ได้คำตอบแล้ว ทายได้ 1 ครั้ง' : '🫵 ตาคุณ! ถามใช่/ไม่ใช่ หรือทายเลย')
       : !uc && s.gq ? (s.gq.phase === 'answer' ? '❓ มีคนถามคุณ! ตอบ ใช่/ไม่ใช่/อาจจะ' : s.gq.phase === 'guess' ? '🎯 ได้คำตอบแล้ว ทายได้ 1 ครั้ง' : '🫵 ตาคุณ! ถามเพื่อน หรือทายเลย')
       : uc.phase === 'white' ? '🤍 คุณโดนโหวตออก! ทายคำของชาวบ้านให้ถูกเพื่อชนะ'
@@ -220,6 +221,11 @@ function notify(prev, s) {
   if (uc && uc.phase === 'vote' && (!prev || !prev.uc || prev.uc.phase !== 'vote')) {
     toast(uc.alive.includes(s.me) ? '🗳️ ถึงเวลาโหวต! แตะการ์ดคนที่สงสัย' : '🗳️ เพื่อนกำลังโหวต', [80, 40, 80]);
   }
+  const sk = s.mode === 'sketch' && s.sk;
+  if (sk && sk.phase === 'draw' && sk.amDrawer && (!prev || !prev.sk || prev.sk.turnNo !== sk.turnNo)) {
+    toast(`✏️ วาดให้ไว: ${sk.word}`, [120, 60, 120]);
+  }
+  if (sk && sk.phase === 'guess' && (!prev || !prev.sk || prev.sk.phase === 'draw')) toast('✋ หยุด! วางปากกา — เปิดภาพให้คนทาย', 80);
   const hc = s.mode === 'hues' && s.hc;
   if (hc && hc.giver !== s.me && hc.cone != null && (!prev || !prev.hc || prev.hc.phase !== hc.phase)) {
     toast(hc.cone === 0 ? '📍 คนใบ้ใบ้แล้ว! แตะช่องสีบนกระดานเพื่อวางหมุด' : '📍 ใบ้เพิ่มแล้ว! วางหมุดที่ 2', [80, 40, 80]);
@@ -1006,8 +1012,9 @@ setInterval(tickKick, 250);
 $('kickYesBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: true }));
 $('kickNoBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: false }));
 
-const MODE_NAME = { hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
+const MODE_NAME = { sketch: '⚡ แข่งวาด', hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
+  sketch: 'Catch Sketch — 1 คนเป็นคนทาย คนอื่นเห็นคำเดียวกันแล้วแข่งกันวาดให้ไว (ห้ามเขียนตัวหนังสือ) วาดเสร็จก่อนได้เปิดภาพก่อน คนทายทายถูกภาพไหน คนทายกับคนวาดภาพนั้นได้แต้มคู่กัน — ภาพแรก 3 · ภาพสอง 2 · ถัดไป 1 (3 คนขึ้นไป)',
   hues: 'Hues and Cues — คนใบ้เลือก 1 สีจากกระดาน 480 สี แล้วใบ้ 1 คำ (ห้ามชื่อสี) ทุกคนวางหมุด → ใบ้เพิ่มอีกไม่เกิน 2 คำ วางหมุดที่ 2 → เฉลย! ตรงช่อง 3 · ใกล้ 2 · ห่าง 2 ช่อง 1 (2 คนขึ้นไป)',
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
   undercover: 'ชาวบ้านได้คำเดียวกัน สปายได้คำคล้าย ผลัดกันใบ้แล้วโหวตจับสปาย (3 คนขึ้นไป)',
@@ -1038,6 +1045,7 @@ function render() {
   const pkMode = s.mode === 'poker' && s.pk && s.state !== 'lobby';
   const omMode = s.mode === 'oldmaid' && s.om && s.state !== 'lobby';
   const hcMode = s.mode === 'hues' && s.hc && s.state !== 'lobby';
+  const skMode = s.mode === 'sketch' && s.sk && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -1073,7 +1081,10 @@ function render() {
   $('omStage').hidden = true;
   $('hcBar').hidden = true;
   $('hcStage').hidden = true;
-  if (hcMode) renderHues(s, me, isHost);
+  $('skBar').hidden = true;
+  $('skStage').hidden = true;
+  if (skMode) renderSketch(s, me, isHost);
+  else if (hcMode) renderHues(s, me, isHost);
   else if (omMode) renderOldMaid(s, me, isHost);
   else if (pkMode) renderPoker(s, me, isHost);
   else if (shMode) renderSheriff(s, me, isHost);
@@ -1114,6 +1125,7 @@ const GAMES = [
   { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
   { mode: 'sheriff', emoji: '👮', name: 'ผู้ตรวจการ', short: 'ลักลอบของเถื่อน ติดสินบน', min: 3 },
   { mode: 'oldmaid', emoji: '👵', name: 'อีแก่กินน้ำ', short: 'ดึงไพ่จับคู่ อย่าติดอีแก่!', min: 2 },
+  { mode: 'sketch', emoji: '⚡', name: 'แข่งวาด', short: 'Catch Sketch วาดให้ไว ให้เพื่อนทาย', min: 3 },
   { mode: 'hues', emoji: '🎨', name: 'ใบ้สี', short: 'Hues and Cues ใบ้คำ ทายสี', min: 2 },
   { mode: 'poker', emoji: '🃏', name: 'โป๊กเกอร์แมว', short: 'Texas Hold\'em ไพ่ธีมแมว 😺', min: 2 },
 ];
@@ -1149,7 +1161,7 @@ function renderHost(s, isHost) {
     b.tabIndex = isHost ? 0 : -1;
   }
   $('modeHint').innerHTML = `<b>${game.emoji} ${game.name}</b> — ${esc(MODE_HINT[s.nextMode])}`;
-  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues'].includes(s.nextMode);
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch'].includes(s.nextMode);
   $('whiteRow').hidden = s.nextMode !== 'undercover';
   for (const id of ['categorySelect', 'timeSelect', 'whiteCheck']) $(id).disabled = !isHost;
   $('startBtn').hidden = !isHost;
@@ -1372,6 +1384,199 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('ucSkipBtn').hidden = myTurn || !turnPlayer || uc.phase === 'vote';
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
+}
+
+// ---------- แข่งวาด (Catch Sketch) ----------
+const skCv = $('skCanvas');
+const skCx = skCv.getContext('2d');
+let skStrokes = []; // ภาพของฉันในตานี้ { c, w, p: [x, y, …] }
+let skTurnSeen = null;
+let skPen = { c: COLORS[0], w: 0.01 };
+let skCur = null;
+let skSendTimer = null;
+const skCanDraw = () => {
+  const k = state && state.mode === 'sketch' && state.sk;
+  return !!k && state.state === 'playing' && k.phase === 'draw' && k.amDrawer && !k.done.includes(state.me);
+};
+function paintOn(ctx, W, list) {
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, W);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const st of list) {
+    ctx.strokeStyle = st.c;
+    ctx.fillStyle = st.c;
+    ctx.lineWidth = st.w * W;
+    const p = st.p;
+    if (p.length === 2) {
+      ctx.beginPath();
+      ctx.arc(p[0] * W, p[1] * W, (st.w * W) / 2, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+    ctx.beginPath();
+    ctx.moveTo(p[0] * W, p[1] * W);
+    for (let i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * W, p[i + 1] * W);
+    ctx.stroke();
+  }
+}
+const skRepaint = () => paintOn(skCx, skCv.width, skStrokes);
+// ส่งภาพล่าสุดให้เซิร์ฟเวอร์เก็บไว้ (เผื่อโดน "หยุด!" ก่อนกดเสร็จ)
+function skSync() {
+  clearTimeout(skSendTimer);
+  skSendTimer = setTimeout(() => {
+    if (skCanDraw()) socket.emit('skDraw', skStrokes, (res) => { if (res && res.error) toast(`⚠️ ${res.error}`); });
+  }, 150);
+}
+function skPos(e) {
+  const b = skCv.getBoundingClientRect();
+  return [r3((e.clientX - b.left) / b.width), r3((e.clientY - b.top) / b.height)];
+}
+skCv.addEventListener('pointerdown', (e) => {
+  if (!skCanDraw()) return;
+  e.preventDefault();
+  try { skCv.setPointerCapture(e.pointerId); } catch {}
+  skCur ={ c: skPen.c, w: skPen.w, p: skPos(e) };
+  skStrokes.push(skCur);
+  skRepaint();
+});
+skCv.addEventListener('pointermove', (e) => {
+  if (!skCur || !skCanDraw()) return;
+  e.preventDefault();
+  const [x, y] = skPos(e);
+  const p = skCur.p;
+  if (Math.abs(p[p.length - 2] - x) + Math.abs(p[p.length - 1] - y) < 0.004) return; // ตัดจุดถี่เกิน
+  const W = skCv.width;
+  skCx.strokeStyle = skCur.c;
+  skCx.lineWidth = skCur.w * W;
+  skCx.lineCap = 'round';
+  skCx.beginPath();
+  skCx.moveTo(p[p.length - 2] * W, p[p.length - 1] * W);
+  skCx.lineTo(x * W, y * W);
+  skCx.stroke();
+  p.push(x, y);
+});
+const skEnd = () => { if (skCur) { skCur = null; skSync(); } };
+skCv.addEventListener('pointerup', skEnd);
+skCv.addEventListener('pointercancel', skEnd);
+$('skColors').innerHTML = COLORS.map((c, i) => `<button type="button" class="color ${i ? '' : 'on'}" data-c="${c}" style="background:${c}" aria-label="สี ${c}"></button>`).join('');
+$('skColors').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-c]');
+  if (!b) return;
+  skPen.c = b.dataset.c;
+  document.querySelectorAll('#skColors .color').forEach((x) => x.classList.toggle('on', x === b));
+});
+document.querySelectorAll('.sk-size').forEach((b) => b.addEventListener('click', () => {
+  skPen.w = Number(b.dataset.size);
+  document.querySelectorAll('.sk-size').forEach((x) => x.classList.toggle('on', x === b));
+}));
+$('skUndoBtn').addEventListener('click', () => { if (skCanDraw()) { skStrokes.pop(); skRepaint(); skSync(); } });
+$('skClearBtn').addEventListener('click', () => skCanDraw() && confirmTap($('skClearBtn'), 'ล้าง?', () => { skStrokes = []; skRepaint(); skSync(); }));
+$('skDoneBtn').addEventListener('click', async () => {
+  clearTimeout(skSendTimer);
+  const res = await act($('skDoneBtn'), 'skDone', { strokes: skStrokes });
+  if (res && res.rank) toast(`✅ ส่งภาพแล้ว — ได้ลำดับที่ ${res.rank}!`);
+});
+$('skGuessForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = $('skGuessInput').value.trim();
+  if (!text) return;
+  const res = await act($('skGuessBtn'), 'skGuess', { text });
+  if (res && !res.error) {
+    $('skGuessInput').value = '';
+    toast(res.correct ? '🎉 ถูกต้อง!' : '❌ ผิด ลองภาพถัดไป', res.correct ? [100, 50, 100] : 60);
+  }
+});
+$('skPassBtn').addEventListener('click', () => confirmTap($('skPassBtn'), 'แตะอีกครั้ง', () => act($('skPassBtn'), 'pass', {})));
+
+function renderSketch(s, me, isHost) {
+  const k = s.sk;
+  const over = k.phase === 'over';
+  const open = k.phase === 'show' || over;
+  const amGuesser = k.guesser === s.me;
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  const gName = amGuesser ? 'คุณ' : nameOf(k.guesser);
+  if (skTurnSeen !== `${s.round}|${k.turnNo}`) {
+    skTurnSeen = `${s.round}|${k.turnNo}`;
+    skStrokes = (k.myDrawing || []).map((x) => ({ ...x, p: x.p.slice() }));
+    skCur = null;
+    skRepaint();
+  }
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('myCard').innerHTML = '';
+  $('turnStrip').hidden = true;
+  $('skStage').hidden = false;
+  const myRank = k.done.indexOf(s.me);
+
+  // ป้าย
+  if (over) $('banner').textContent = k.winners && k.winners.length ? `🏆 ${k.winners.join(', ')} ชนะเกมแข่งวาด!` : '🏁 จบเกมแข่งวาด';
+  else if (k.phase === 'draw') $('banner').textContent = amGuesser ? `⏳ เพื่อนกำลังแข่งกันวาด… (${k.done.length}/${k.stopAt} คนเสร็จ = หยุด)` : myRank !== -1 ? `✅ ส่งแล้ว ลำดับที่ ${myRank + 1} — รอคนอื่น` : '✏️ วาดให้ไว! เสร็จแล้วกด "วาดเสร็จ"';
+  else if (k.phase === 'guess') $('banner').textContent = amGuesser ? `🔎 ทายภาพที่ ${k.board + 1}/${k.order.length} (+${k.points[k.board]} แต้ม)` : `🔎 ${gName} กำลังทายภาพที่ ${k.board + 1}/${k.order.length}`;
+  else $('banner').textContent = k.winner ? `🎉 คำว่า “${k.word}” — ${gName} กับ ${nameOf(k.winner.drawer)} ได้ +${k.winner.pts}` : `😅 ไม่มีใครทายถูก — คำว่า “${k.word}”`;
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = over ? 'ดูคะแนนรวมในตารางอันดับ' : `ตาที่ ${k.turnNo}/${k.totalTurns} · คนทาย: <b>${esc(gName)}</b>${k.next ? ` · ต่อไป: ${esc(nameOf(k.next))}` : ''} · ถึง 20 แต้มชนะทันที`;
+
+  // คำ / คำใบ้
+  $('skTop').innerHTML = over ? '' : amGuesser && !open
+    ? `<div class="sk-word muted"><small>หมวด (คำใบ้)</small>${esc(k.category)}</div>`
+    : `<div class="sk-word"><small>${open ? 'เฉลย' : 'วาดคำว่า'} · หมวด ${esc(k.category)}</small>${esc(k.word)}</div>
+       ${!open && !amGuesser ? '<p class="muted center sk-rule">ห้ามเขียนตัวหนังสือ/ตัวเลข · ห้ามบอกคำในแชท</p>' : ''}`;
+
+  // กระดานของฉัน (คนวาด ช่วงวาด)
+  const showPad = k.phase === 'draw' && k.amDrawer;
+  $('skPad').hidden = !showPad;
+  if (showPad) {
+    const locked = myRank !== -1;
+    $('skLock').hidden = !locked;
+    $('skLock').textContent = locked ? `✅ ส่งแล้ว · ลำดับที่ ${myRank + 1}` : '';
+    $('skDoneBtn').hidden = locked;
+    $('skDoneBtn').textContent = `✅ วาดเสร็จ! (${k.done.length}/${k.stopAt} คนเสร็จ = หยุด)`;
+  }
+
+  // ภาพที่เปิดแล้ว
+  const ids = k.phase === 'guess' ? k.order.slice(0, k.board + 1) : open ? k.order : [];
+  const boardsHtml = ids.map((id, i) => {
+    const gs = k.guesses.filter((g) => g.board === i);
+    const now = k.phase === 'guess' && i === k.board;
+    const win = k.winner && k.winner.board === i;
+    const st = win ? `🎉 ถูก! +${k.winner.pts}` : now ? `🔎 กำลังทาย${k.attempts > 1 ? ` (เหลือ ${k.attempts - k.tries} ครั้ง)` : ''}` : gs.length ? `❌ ${gs.map((g) => esc(g.text)).join(', ')}` : open ? '' : '⏭️ ข้าม';
+    return `<figure class="sk-board ${now ? 'now' : ''} ${win ? 'win' : ''}">
+      <canvas width="300" height="300" data-sk="${id}"></canvas>
+      <figcaption><b>#${i + 1}</b> ${esc(nameOf(id))}${id === s.me ? ' (ฉัน)' : ''}<br><small>${st}</small></figcaption></figure>`;
+  }).join('');
+  const sig = `${k.seq}|${ids.join()}|${k.guesses.length}`;
+  if ($('skBoards').dataset.sig !== sig) {
+    $('skBoards').dataset.sig = sig;
+    $('skBoards').innerHTML = boardsHtml;
+    for (const c of $('skBoards').querySelectorAll('canvas[data-sk]')) paintOn(c.getContext('2d'), c.width, k.drawings[c.dataset.sk] || []);
+  }
+  $('skBoards').classList.toggle('single', k.phase === 'guess');
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
+    const r = k.done.indexOf(p.id);
+    let status = p.id === k.guesser ? '🔎 คนทาย' : k.phase === 'draw' ? (r !== -1 ? `✅ เสร็จลำดับ ${r + 1}` : '✏️ กำลังวาด…') : k.order.includes(p.id) ? `🖼️ ภาพที่ ${k.order.indexOf(p.id) + 1}` : '';
+    if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+    const cls = ['player', !p.connected && 'off', p.id === k.guesser && 'selected'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+      <span class="score">${p.score} แต้ม</span>
+      <div class="name">${avatar(p.name)}${esc(p.name)}</div>
+      <div class="status">${status}</div>
+    </div>`;
+  }).join('') || '<p class="muted center" style="grid-column:1/-1">ยังไม่มีเพื่อนในห้อง</p>';
+
+  // แถบล่าง
+  const bar = $('skBar');
+  const guessing = k.phase === 'guess' && amGuesser;
+  const canPass = (k.phase === 'guess' && (amGuesser || isHost)) || (k.phase === 'show' && (amGuesser || isHost)) || (k.phase === 'draw' && isHost);
+  bar.hidden = over || (!guessing && !canPass && !amGuesser);
+  if (bar.hidden) return;
+  $('skGuessForm').hidden = !guessing;
+  $('skPassBtn').hidden = !canPass;
+  $('skPassBtn').textContent = k.phase === 'draw' ? '✋ หยุดวาด' : k.phase === 'guess' ? '⏭️ ข้ามภาพนี้' : '⏭️ ตาถัดไป';
+  $('skInfoText').textContent = guessing ? `ภาพของ ${nameOf(k.order[k.board])} — ทายได้ ${k.attempts - k.tries} ครั้ง` : k.phase === 'draw' ? (amGuesser ? `หมวด: ${k.category} — รอภาพก่อนนะ` : 'หัวห้องกดหยุดวาดได้') : k.phase === 'show' ? 'กำลังโชว์เฉลย' : `รอ ${gName} ทาย…`;
 }
 
 // ---------- ใบ้สี (Hues and Cues) ----------
@@ -2396,6 +2601,12 @@ function feedItem(f) {
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
     case 'om-draw': return `<li class="${f.pairRank ? 'ok' : 'muted'}">🃏 <b>${esc(f.name)}</b> ดึงจาก ${esc(f.from)}${f.pairRank ? ` → ได้คู่ ${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[f.pairRank] || f.pairRank)} 🎉` : ''}</li>`;
+    case 'sk-done': return `<li>✏️ <b>${esc(f.name)}</b> วาดเสร็จเป็นคนที่ ${f.n}</li>`;
+    case 'sk-stop': return `<li class="muted">✋ หยุด! ${f.names.length ? `เสร็จก่อน: ${f.names.map(esc).join(', ')}` : 'หมดเวลาวาด'}</li>`;
+    case 'sk-guess': return f.text == null ? `<li class="muted">⏱️ ${esc(f.name)} ไม่ได้ทายภาพของ ${esc(f.drawer)}</li>` : `<li class="${f.ok ? 'ok' : 'bad'}">${f.ok ? '🎉' : '❌'} <b>${esc(f.name)}</b> ทายภาพของ ${esc(f.drawer)}: “${esc(f.text)}”</li>`;
+    case 'sk-show': return f.drawer ? `<li class="ok">⚡ คำว่า <b>${esc(f.word)}</b> — ${esc(f.name)} กับ ${esc(f.drawer)} ได้คนละ +${f.pts}</li>` : `<li class="muted">😅 ไม่มีใครทายถูก — คำว่า <b>${esc(f.word)}</b></li>`;
+    case 'sk-skip': return `<li class="muted">⏭️ ${esc(f.name)} ออกจากห้อง ข้ามตาทาย</li>`;
+    case 'sk-over': return f.winners && f.winners.length ? `<li class="ok">🏆 แข่งวาดจบแล้ว! ผู้ชนะ: <b>${f.winners.map(esc).join(', ')}</b></li>` : '<li class="muted">🏁 จบเกมแข่งวาด</li>';
     case 'hc-clue': return `<li>💬 <b>${esc(f.name)}</b> ใบ้${f.n === 2 ? 'เพิ่ม' : ''}: “${esc(f.text)}”</li>`;
     case 'hc-show': return `<li class="ok"><span class="hc-swatch sm" style="background:${hcColor(f.target)}"></span> เฉลยของ <b>${esc(f.name)}</b>: ${f.cell}${f.best ? ` · ใกล้สุด ${esc(f.best)} +${f.bestPts}` : ''} · คนใบ้ +${f.giverPts}</li>`;
     case 'hc-skip': return `<li class="muted">⏭️ ${esc(f.name)} ออกจากห้อง ข้ามตาใบ้</li>`;
