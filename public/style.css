@@ -829,3 +829,14 @@ body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--
 .ce-result { margin-top: 12px; }
 .ce-credit { font-size: .75rem; color: var(--muted); text-align: right; margin: 8px 0 0; }
 .ce-credit a { color: inherit; }
+
+/* จิ๊กซอปิดรูป (ทายคนดัง) */
+.ce-tiles { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(5, 1fr); pointer-events: none; }
+.ce-tiles i.tap { pointer-events: auto; cursor: pointer; }
+.ce-tiles.my-turn i.tap { border-color: var(--accent); animation: ce-pulse 1.4s ease-in-out infinite; }
+.ce-tiles i.tap:hover { background: var(--accent-soft); }
+.ce-tiles i.off { pointer-events: none; }
+@keyframes ce-pulse { 50% { background: var(--accent-soft); } }
+.ce-tiles i { background: var(--card); border: 1px solid var(--line); border-radius: 3px; transition: opacity .35s ease, transform .35s ease; display: flex; align-items: center; justify-content: center; }
+.ce-tiles i::after { content: '?'; font-style: normal; font-weight: 700; color: var(--line); font-size: 1.2rem; }
+.ce-tiles i.off { opacity: 0; transform: scale(.6) rotate(8deg); }

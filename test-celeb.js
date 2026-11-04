@@ -1,5 +1,4 @@
-// ทดสอบเกม "ทายคนดัง": node test-celeb.js
-process.env.CE_Q_MS = '15000';
+// ทดสอบเกม "ทายคนดัง" (เปิดจิ๊กซอผลัดกันทาย): node test-celeb.js
 const assert = require('assert');
 const { Room } = require('./game');
 const { CELEBS, celebByToken } = require('./celeb');
@@ -16,72 +15,105 @@ function setup(opts, n = 3) {
   r.startCeleb(opts);
   return r;
 }
+const q = (r) => r.ce.qs[r.ce.idx];
+const wrongOf = (r, k = 0) => q(r).choices.filter((x) => x !== q(r).id)[k];
 
-// ---- เลือกกลุ่ม/จำนวนข้อ · ตัวเลือก 4 ชื่อมีคำตอบ · กลุ่มเดียวกัน
+// ---- เลือกกลุ่ม/จำนวนข้อ · ตัวเลือก 4 ชื่อมีคำตอบ · กลุ่มเดียวกัน · รูปใช้รหัสสุ่ม
 {
   const r = setup({ group: 'th', count: 5 });
-  const e = r.ce;
-  assert.strictEqual(e.qs.length, 5);
-  for (const q of e.qs) {
-    assert.strictEqual(q.choices.length, 4);
-    assert.ok(q.choices.includes(q.id));
-    assert.strictEqual(new Set(q.choices).size, 4);
-    assert.ok(q.choices.every((id) => CELEBS.find((c) => c.id === id).group === 'th'), 'ตัวเลือกเป็นคนไทยหมด');
+  assert.strictEqual(r.ce.qs.length, 5);
+  for (const x of r.ce.qs) {
+    assert.strictEqual(new Set(x.choices).size, 4);
+    assert.ok(x.choices.includes(x.id));
+    assert.ok(x.choices.every((id) => CELEBS.find((c) => c.id === id).group === 'th'));
   }
-  assert.ok(setup({ group: 'intl', count: 10 }).ce.qs.every((q) => CELEBS.find((c) => c.id === q.id).group === 'intl'));
+  assert.ok(setup({ group: 'intl', count: 10 }).ce.qs.every((x) => CELEBS.find((c) => c.id === x.id).group === 'intl'));
   assert.strictEqual(setup({ group: 'xx', count: 99 }).ce.qs.length, 10, 'ค่าแปลก ๆ → ค่าเริ่มต้น');
-  // รูปใช้รหัสสุ่ม ไม่บอกชื่อ
   const v = r.viewFor('p0').ce;
   assert.ok(/^\/celeb-img\/[0-9a-f]{18}$/.test(v.img));
-  assert.strictEqual(celebByToken(v.img.split('/').pop()).id, e.qs[0].id);
-  assert.strictEqual(v.answer, null, 'ยังไม่เฉลย');
+  assert.strictEqual(celebByToken(v.img.split('/').pop()).id, q(r).id);
+  assert.strictEqual(v.answer, null);
+  assert.deepStrictEqual(v.opened, [], 'เริ่มข้อ = ปิดทุกชิ้น');
 }
 
-// ---- ตอบ: ครั้งเดียว · ถูกได้แต้มตามความไว · ผิด 0 · รู้ผลตอนเฉลย · ตอบครบ = เฉลย
+// ---- ผลัดกัน: ต้องเปิดก่อนทาย · ไม่ใช่ตา = ทำไม่ได้ · ส่งต่อ · ทายผิด = หมดสิทธิ์ · ถูก = แต้มตามชิ้นที่เปิด
 {
   const r = setup({ group: 'mix', count: 5 });
-  const q = r.ce.qs[0];
-  const wrong = q.choices.find((x) => x !== q.id);
-  const res = r.ceAnswer('p0', q.id);
-  assert.ok(res.ok && res.pts >= 9, 'ตอบไวได้เกือบเต็ม');
-  assert.throws(() => r.ceAnswer('p0', q.id), /ตอบข้อนี้ไปแล้ว/);
-  assert.throws(() => r.ceAnswer('p1', 99999), /ไม่ถูกต้อง/);
-  assert.strictEqual(r.viewFor('p0').ce.mine.ok, undefined, 'ยังไม่บอกว่าถูก/ผิดจนกว่าจะเฉลย');
-  r.ce.startedAt -= 10000; // ผ่านไป 10 วิ
-  assert.ok(r.ceAnswer('p1', q.id).pts <= 4, 'ตอบช้าได้น้อย');
-  assert.strictEqual(r.ce.phase, 'q');
-  r.ceAnswer('p2', wrong);
-  assert.strictEqual(r.ce.phase, 'reveal', 'ตอบครบ → เฉลย');
-  assert.strictEqual(r.players.get('p2').score, 0);
-  const v = r.viewFor('p2').ce;
-  assert.strictEqual(v.answer.id, q.id);
-  assert.strictEqual(v.mine.ok, false);
+  const [a, b, c] = r.ce.order;
+  assert.strictEqual(r.currentTurnId(), a);
+  assert.throws(() => r.ceOpen(b, 0), /ยังไม่ถึงตา/);
+  assert.throws(() => r.ceAnswer(a, q(r).id), /เปิดจิ๊กซอก่อน/);
+  if (a !== r.hostId) assert.throws(() => r.pass(a), /เปิดจิ๊กซอก่อน/); // หัวห้องกด = ข้ามข้อ
+  r.ceOpen(a, 5);
+  assert.throws(() => r.ceOpen(a, 6), /เปิดไปแล้ว/);
+  r.pass(a); // ส่งต่อ
+  assert.strictEqual(r.currentTurnId(), b);
+  assert.throws(() => r.ceOpen(b, 5), /ยังปิดอยู่/);
+  r.ceOpen(b, 6);
+  assert.strictEqual(r.ceAnswer(b, wrongOf(r)).ok, false);
+  assert.deepStrictEqual(r.ce.out, [b]);
+  assert.strictEqual(r.currentTurnId(), c);
+  assert.strictEqual(r.viewFor(a).ce.guesses.length, 1, 'ทุกคนเห็นว่าใครทายผิดชื่อไหน');
+  r.ceOpen(c, 7);
+  r.pass(c);
+  assert.strictEqual(r.currentTurnId(), a, 'ข้ามคนที่ทายผิดไปแล้ว');
+  r.ceOpen(a, 8); // เปิดแล้ว 4 ชิ้น → 9 แต้ม
+  const res = r.ceAnswer(a, q(r).id);
+  assert.deepStrictEqual(res, { ok: true, pts: 9 });
+  assert.strictEqual(r.players.get(a).score, 9);
+  assert.strictEqual(r.ce.phase, 'reveal');
+  assert.strictEqual(r.viewFor(b).ce.answer.id, q(r).id);
   r.timeoutTurn();
-  assert.strictEqual(r.ce.n === undefined && r.viewFor('p0').ce.n, 2, 'ข้อถัดไป');
+  assert.strictEqual(r.viewFor(a).ce.n, 2);
+  assert.deepStrictEqual(r.ce.opened, []);
+  assert.strictEqual(r.currentTurnId(), b, 'ข้อใหม่เริ่มที่คนถัดไป');
 }
 
-// ---- หมดเวลา / คนหลุดไม่ต้องรอ / หัวห้องข้าม / ครบทุกข้อ = จบ
+// ---- ทุกคนทายผิด = เฉลย · หมดเวลา = สุ่มเปิดให้แล้วส่งต่อ
+{
+  const r = setup({ group: 'mix', count: 5 }, 2);
+  const [a, b] = r.ce.order;
+  r.timeoutTurn();
+  assert.strictEqual(r.ce.opened.length, 1, 'หมดเวลา → สุ่มเปิดให้ 1 ชิ้น');
+  assert.strictEqual(r.currentTurnId(), b);
+  r.ceOpen(b, r.ce.opened[0] === 0 ? 1 : 0);
+  r.ceAnswer(b, wrongOf(r, 0));
+  r.ceOpen(a, 19 - (r.ce.opened.includes(19) ? 1 : 0));
+  r.ceAnswer(a, wrongOf(r, 1));
+  assert.strictEqual(r.ce.phase, 'reveal', 'ทุกคนทายผิด → เฉลย');
+  assert.strictEqual(r.ce.result, null);
+}
+
+// ---- เปิดครบทุกชิ้นแล้วส่งต่อครบรอบ = เฉลย · ได้แต้มต่ำสุด 1
+{
+  const r = setup({ group: 'mix', count: 5 }, 2);
+  r.ce.opened = Array.from({ length: 19 }, (_, i) => i);
+  const [a, b] = r.ce.order;
+  r.ceOpen(a, 19);
+  r.pass(a);
+  assert.strictEqual(r.ce.step, 'guess', 'เปิดครบแล้ว → ไม่ต้องเปิด ทายหรือส่งต่อเลย');
+  r.pass(b);
+  assert.strictEqual(r.ce.phase, 'reveal', 'เห็นรูปเต็มแล้วส่งต่อครบทุกคน → เฉลย');
+}
+
+// ---- คนถึงตาออกจากห้อง → คนถัดไป · หัวห้องข้ามข้อ · ครบทุกข้อ = จบ
 {
   const r = setup({ group: 'intl', count: 5 });
-  r.timeoutTurn();
-  assert.strictEqual(r.ce.phase, 'reveal', 'หมดเวลา → เฉลย');
-  r.timeoutTurn();
-  r.players.get('p1').connected = false;
-  r.players.get('p2').connected = false;
-  r.ceAnswer('p0', r.ce.qs[1].id);
-  assert.strictEqual(r.ce.phase, 'reveal', 'คนหลุดไม่ต้องรอ');
-  assert.throws(() => r.cePass('p1'), /หัวห้อง/);
+  const [a, b] = r.ce.order;
+  r.removePlayer(a);
+  assert.strictEqual(r.currentTurnId(), b);
+  const notHost = r.ce.order.find((x) => x !== r.hostId && x !== r.currentTurnId());
+  if (notHost) assert.throws(() => r.pass(notHost), /ยังไม่ถึงตา/);
   while (r.state === 'playing') r.cePass(r.hostId);
   assert.strictEqual(r.ce.phase, 'over');
-  assert.deepStrictEqual(r.ce.winners, ['คน0']);
 }
 
 // ---- เกมใหม่ไม่ซ้ำคนเดิม (ถ้ายังพอ)
 {
   const r = setup({ group: 'th', count: 20 });
-  const first = new Set(r.ce.qs.map((q) => q.id));
+  const first = new Set(r.ce.qs.map((x) => x.id));
   r.startCeleb({ group: 'th', count: 20 });
-  assert.ok(r.ce.qs.every((q) => !first.has(q.id)), 'ไม่ซ้ำกับเกมก่อน');
+  assert.ok(r.ce.qs.every((x) => !first.has(x.id)), 'ไม่ซ้ำกับเกมก่อน');
 }
 
 console.log('ทายคนดัง ผ่านทุกเทสต์ ✅');

@@ -74,7 +74,7 @@ function syncTurn(room) {
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
   if (room.mode === 'celeb') {
-    label = `🌟 ทายคนดัง (${room.category}) ${room.ce.qs.length} ข้อ — ยิ่งตอบไวยิ่งได้เยอะ!`;
+    label = `🧩 ทายคนดัง (${room.category}) ${room.ce.qs.length} ข้อ — ผลัดกันเปิดจิ๊กซอแล้วทาย เปิดน้อยได้เยอะ!`;
   } else if (room.mode === 'sketch') {
     const g = room.players.get(room.sk.guesser);
     label = `⚡ ${g ? g.name : '?'} เป็นคนทาย — คนอื่นแข่งกันวาดให้ไว! (ห้ามบอกคำในแชท)`;
@@ -342,8 +342,11 @@ io.on('connection', (socket) => {
         case 'omDraw':
           out.last = r.omDraw(me.id, data.index);
           break;
+        case 'ceOpen':
+          r.ceOpen(me.id, data.tile);
+          break;
         case 'ceAnswer':
-          r.ceAnswer(me.id, data.choice);
+          { const a = r.ceAnswer(me.id, data.choice); out.correct = a.ok; out.pts = a.pts; }
           break;
         case 'skDone':
           out.rank = r.skDone(me.id, data.strokes);

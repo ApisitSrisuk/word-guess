@@ -75,7 +75,7 @@ class Room {
     // ใบ้สี: ล้างแชทเมื่อเปลี่ยนคนใบ้
     if (this.state === 'playing' && this.mode === 'hues') return `hc|${this.round}|${this.hc.turnNo}`;
     if (this.state === 'playing' && this.mode === 'sketch') return `sk|${this.round}|${this.sk.turnNo}`;
-    if (this.state === 'playing' && this.mode === 'celeb') return `ce|${this.round}`; // ไม่ล้างแชททุกข้อ
+    if (this.state === 'playing' && this.mode === 'celeb') return `ce|${this.round}`; // ไม่ล้างแชททุกตา
     // โป๊กเกอร์: ล้างแชทเมื่อขึ้นมือใหม่ (ไม่ล้างทุกการเดิมพัน จะได้แซวกันได้)
     if (this.state === 'playing' && this.mode === 'poker') return `pk|${this.round}|${this.pk.handNo}`;
     if (this.state === 'playing' && this.mode === 'sheriff') return this.shChatKey();
@@ -231,7 +231,6 @@ class Room {
     if (this.mode === 'cheese') return this.chCheckVotes();
     if (this.mode === 'hues' && this.state === 'playing') return this.hcCheckPlaced();
     if (this.mode === 'sketch' && this.state === 'playing') return this.skCheckStop();
-    if (this.mode === 'celeb' && this.state === 'playing') return this.ceCheckAll();
     return false;
   }
 
@@ -273,7 +272,7 @@ class Room {
     if (this.mode === 'oldmaid') return this.omAutoSkip();
     if (this.mode === 'hues') return this.hcAutoSkip();
     if (this.mode === 'sketch') return this.skAutoSkip();
-    if (this.mode === 'celeb') return this.ceCheckAll();
+    if (this.mode === 'celeb') return this.ceAutoSkip();
     if (this.mode === 'draw') {
       const d = this.players.get(this.drCurrent());
       return d && !d.connected ? this.drPass(null) : false;
@@ -300,7 +299,7 @@ class Room {
     if (this.mode === 'oldmaid') return this.omCurrent();
     if (this.mode === 'hues') return this.hcCurrent();
     if (this.mode === 'sketch') return this.skCurrent();
-    if (this.mode === 'celeb') return null; // ทุกคนตอบพร้อมกัน
+    if (this.mode === 'celeb') return this.ceCurrent();
     if (this.state === 'playing' && this.gq.phase === 'answer') return this.gq.targetId; // รอเพื่อนตอบ
     return this.turnOrder.length ? this.turnOrder[this.turn % this.turnOrder.length] : null;
   }
@@ -342,7 +341,7 @@ class Room {
     if (this.mode === 'oldmaid') return false; // ต้องดึงเอง (หมดเวลา = สุ่มดึงให้)
     if (this.mode === 'hues') return this.hcPass(id); // คนใบ้/หัวห้องกดไปต่อ ไม่ต้องรอหมุดครบ
     if (this.mode === 'sketch') return this.skPass(id); // คนทายยอมแพ้ภาพนี้ / หัวห้องกดหยุดวาด
-    if (this.mode === 'celeb') return this.cePass(id); // หัวห้องกดข้ามข้อ
+    if (this.mode === 'celeb') return this.cePass(id); // ส่งต่อ (คนที่ถึงตา) / ข้ามข้อ (หัวห้อง)
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });
