@@ -258,6 +258,8 @@ $('startBtn').addEventListener('click', () => {
     category: $('categorySelect').value,
     mrWhite: $('whiteCheck').checked,
     turnLimit: Number($('timeSelect').value),
+    celebGroup: $('celebGroup').value,
+    celebCount: Number($('celebCount').value),
   }).then((res) => {
     if (res.error) $('hostError').textContent = res.error;
   });
@@ -1012,8 +1014,9 @@ setInterval(tickKick, 250);
 $('kickYesBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: true }));
 $('kickNoBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote', { yes: false }));
 
-const MODE_NAME = { sketch: '⚡ แข่งวาด', hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
+const MODE_NAME = { celeb: '🌟 ทายคนดัง', sketch: '⚡ แข่งวาด', hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
+  celeb: 'ขึ้นรูปคนดัง เลือกว่าเป็นใครจาก 4 ชื่อ ทุกคนตอบพร้อมกัน ตอบได้ครั้งเดียว ยิ่งตอบไวยิ่งได้เยอะ (สูงสุด 10 แต้ม) — เลือกได้ว่าคนดังไทย ต่างประเทศ หรือผสม · รูปจาก Wikipedia (1 คนขึ้นไป)',
   sketch: 'Catch Sketch — 1 คนเป็นคนทาย คนอื่นเห็นคำเดียวกันแล้วแข่งกันวาดให้ไว (ห้ามเขียนตัวหนังสือ) วาดเสร็จก่อนได้เปิดภาพก่อน คนทายทายถูกภาพไหน คนทายกับคนวาดภาพนั้นได้แต้มคู่กัน — ภาพแรก 3 · ภาพสอง 2 · ถัดไป 1 (3 คนขึ้นไป)',
   hues: 'Hues and Cues — คนใบ้เลือก 1 สีจากกระดาน 480 สี แล้วใบ้ 1 คำ (ห้ามชื่อสี) ทุกคนวางหมุด → ใบ้เพิ่มอีกไม่เกิน 2 คำ วางหมุดที่ 2 → เฉลย! ตรงช่อง 3 · ใกล้ 2 · ห่าง 2 ช่อง 1 (2 คนขึ้นไป)',
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
@@ -1046,6 +1049,7 @@ function render() {
   const omMode = s.mode === 'oldmaid' && s.om && s.state !== 'lobby';
   const hcMode = s.mode === 'hues' && s.hc && s.state !== 'lobby';
   const skMode = s.mode === 'sketch' && s.sk && s.state !== 'lobby';
+  const ceMode = s.mode === 'celeb' && s.ce && s.state !== 'lobby';
   document.body.classList.toggle('night', !!(chMode && s.ch.phase === 'night'));
   const turnPlayer = s.players.find((p) => p.id === s.currentTurn);
 
@@ -1083,7 +1087,9 @@ function render() {
   $('hcStage').hidden = true;
   $('skBar').hidden = true;
   $('skStage').hidden = true;
-  if (skMode) renderSketch(s, me, isHost);
+  $('ceStage').hidden = true;
+  if (ceMode) renderCeleb(s, me, isHost);
+  else if (skMode) renderSketch(s, me, isHost);
   else if (hcMode) renderHues(s, me, isHost);
   else if (omMode) renderOldMaid(s, me, isHost);
   else if (pkMode) renderPoker(s, me, isHost);
@@ -1125,6 +1131,7 @@ const GAMES = [
   { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
   { mode: 'sheriff', emoji: '👮', name: 'ผู้ตรวจการ', short: 'ลักลอบของเถื่อน ติดสินบน', min: 3 },
   { mode: 'oldmaid', emoji: '👵', name: 'อีแก่กินน้ำ', short: 'ดึงไพ่จับคู่ อย่าติดอีแก่!', min: 2 },
+  { mode: 'celeb', emoji: '🌟', name: 'ทายคนดัง', short: 'ดูรูปแล้วทายว่าใคร ไทย/ต่างประเทศ', min: 1 },
   { mode: 'sketch', emoji: '⚡', name: 'แข่งวาด', short: 'Catch Sketch วาดให้ไว ให้เพื่อนทาย', min: 3 },
   { mode: 'hues', emoji: '🎨', name: 'ใบ้สี', short: 'Hues and Cues ใบ้คำ ทายสี', min: 2 },
   { mode: 'poker', emoji: '🃏', name: 'โป๊กเกอร์แมว', short: 'Texas Hold\'em ไพ่ธีมแมว 😺', min: 2 },
@@ -1161,7 +1168,10 @@ function renderHost(s, isHost) {
     b.tabIndex = isHost ? 0 : -1;
   }
   $('modeHint').innerHTML = `<b>${game.emoji} ${game.name}</b> — ${esc(MODE_HINT[s.nextMode])}`;
-  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch'].includes(s.nextMode);
+  $('categoryRow').hidden = ['undercover', 'cheese', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch', 'celeb'].includes(s.nextMode);
+  $('celebRow').hidden = s.nextMode !== 'celeb';
+  $('celebCountRow').hidden = s.nextMode !== 'celeb';
+  for (const id of ['celebGroup', 'celebCount']) $(id).disabled = !isHost;
   $('whiteRow').hidden = s.nextMode !== 'undercover';
   for (const id of ['categorySelect', 'timeSelect', 'whiteCheck']) $(id).disabled = !isHost;
   $('startBtn').hidden = !isHost;
@@ -1384,6 +1394,91 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('ucSkipBtn').hidden = myTurn || !turnPlayer || uc.phase === 'vote';
   if (!$('ucSkipBtn').dataset.armed) $('ucSkipBtn').textContent = turnPlayer ? `✅ จบตา ${turnPlayer.name}` : '✅ จบตา';
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
+}
+
+// ---------- ทายคนดัง ----------
+let ceImgSrc = '';
+const cePreloaded = new Set();
+$('ceResult').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ce-pass]');
+  if (b) act(b, 'pass', {});
+});
+$('ceImg').addEventListener('load', () => { $('ceImgMsg').hidden = true; });
+$('ceImg').addEventListener('error', () => { $('ceImgMsg').hidden = false; $('ceImgMsg').textContent = '😢 โหลดรูปไม่ได้ (หัวห้องกดข้ามข้อได้)'; });
+$('ceChoices').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-choice]');
+  if (!b || b.disabled) return;
+  const res = await act(b, 'ceAnswer', { choice: Number(b.dataset.choice) });
+  if (res && !res.error) toast('✅ ส่งคำตอบแล้ว — รอเฉลย');
+});
+
+function renderCeleb(s, me, isHost) {
+  const e = s.ce;
+  const over = e.phase === 'over';
+  const open = e.phase === 'reveal' || over;
+  const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
+  $('guessForm').hidden = true;
+  $('ucBar').hidden = true;
+  $('myCard').innerHTML = '';
+  $('turnStrip').hidden = true;
+  $('ceStage').hidden = false;
+
+  // รูป (เปลี่ยน src เฉพาะตอนเปลี่ยนข้อ) + โหลดรูปข้อถัดไปรอไว้
+  if (ceImgSrc !== e.img) {
+    ceImgSrc = e.img;
+    $('ceImgMsg').hidden = false;
+    $('ceImgMsg').textContent = '⏳ กำลังโหลดรูป…';
+    $('ceImg').src = e.img;
+  }
+  if (e.nextImg && !cePreloaded.has(e.nextImg)) {
+    cePreloaded.add(e.nextImg);
+    new Image().src = e.nextImg;
+  }
+
+  // ป้าย
+  const live = s.players.filter((p) => p.connected);
+  if (over) $('banner').textContent = e.winners && e.winners.length ? `🏆 ${e.winners.join(', ')} ชนะเกมทายคนดัง!` : '🏁 จบเกมทายคนดัง';
+  else if (open) $('banner').textContent = `🌟 เฉลย: ${e.answer.name}`;
+  else $('banner').textContent = e.mine ? '✅ ตอบแล้ว รอคนอื่น…' : '🤔 ใครเอ่ย? เลือกให้ไว ยิ่งไวยิ่งได้เยอะ!';
+  $('subBanner').hidden = false;
+  $('subBanner').innerHTML = over ? 'ดูคะแนนรวมในตารางอันดับ' : `ข้อ ${e.n}/${e.total} · ${{ th: '🇹🇭 คนดังไทย', intl: '🌍 ต่างประเทศ', mix: '🎲 ไทย + ต่างประเทศ' }[e.group]} · ตอบแล้ว ${e.answered.length}/${live.length} คน`;
+
+  // ตัวเลือก
+  const pickedBy = {};
+  if (open && e.answers) for (const [pid, a] of Object.entries(e.answers)) (pickedBy[a.choice] = pickedBy[a.choice] || []).push(pid);
+  $('ceChoices').hidden = over;
+  $('ceChoices').innerHTML = e.choices.map((c) => {
+    const mine = e.mine && e.mine.choice === c.id;
+    const cls = ['ce-choice', mine && 'picked', open && c.id === e.answer.id && 'right', open && mine && c.id !== e.answer.id && 'wrong'].filter(Boolean).join(' ');
+    const who = (pickedBy[c.id] || []).map((pid) => avatar(nameOf(pid), 'sm')).join('');
+    return `<button type="button" class="${cls}" data-choice="${c.id}" ${e.mine || open ? 'disabled' : ''}>${esc(c.name)}${who ? `<span class="ce-who">${who}</span>` : ''}</button>`;
+  }).join('');
+
+  // เฉลย + แต้มข้อนี้ + เครดิตรูป
+  if (open && e.answer && !over) {
+    const rows = s.players.map((p) => {
+      const a = e.answers[p.id];
+      return `<li><span>${avatar(p.name, 'sm')}${esc(p.name)}</span><span class="muted">${a ? (a.ok ? `✅ ${(a.ms / 1000).toFixed(1)} วิ` : '❌') : '—'}</span><b>${a && a.pts ? `+${a.pts}` : ''}</b></li>`;
+    }).join('');
+    $('ceResult').innerHTML = `<div class="card ce-result"><p class="center"><b>${esc(e.answer.name)}</b> · ${esc(e.answer.kind)}</p>
+      <ul class="hc-res">${rows}</ul>
+      <p class="ce-credit">รูป: <a href="${esc(e.answer.page)}" target="_blank" rel="noopener">Wikipedia / Wikimedia Commons</a></p></div>`;
+  } else $('ceResult').innerHTML = '';
+  if (isHost && !over) $('ceResult').insertAdjacentHTML('beforeend', `<p class="center"><button type="button" class="secondary small" data-ce-pass>${open ? '⏭️ ข้อถัดไป' : '⏭️ ข้ามข้อนี้ (เฉลยเลย)'}</button></p>`);
+
+  // การ์ดผู้เล่น
+  $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
+    const a = open && e.answers ? e.answers[p.id] : null;
+    let status = over ? `${e.gained[p.id] || 0} แต้มเกมนี้` : open ? (a ? (a.ok ? `✅ +${a.pts}` : '❌ ผิด') : '— ไม่ได้ตอบ') : e.answered.includes(p.id) ? '✅ ตอบแล้ว' : '🤔 กำลังคิด…';
+    if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
+    const cls = ['player', !p.connected && 'off'].filter(Boolean).join(' ');
+    return `<div class="${cls}">
+      ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
+      <span class="score">${p.score} แต้ม</span>
+      <div class="name">${avatar(p.name)}${esc(p.name)}</div>
+      <div class="status">${status}</div>
+    </div>`;
+  }).join('');
 }
 
 // ---------- แข่งวาด (Catch Sketch) ----------
@@ -2601,6 +2696,8 @@ function feedItem(f) {
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
     case 'om-draw': return `<li class="${f.pairRank ? 'ok' : 'muted'}">🃏 <b>${esc(f.name)}</b> ดึงจาก ${esc(f.from)}${f.pairRank ? ` → ได้คู่ ${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[f.pairRank] || f.pairRank)} 🎉` : ''}</li>`;
+    case 'ce-reveal': return `<li class="${f.right ? 'ok' : 'muted'}">🌟 ข้อ ${f.n}: <b>${esc(f.name)}</b> — ตอบถูก ${f.right} คน${f.fastest ? ` · ไวสุด ${esc(f.fastest)}` : ''}</li>`;
+    case 'ce-over': return f.winners && f.winners.length ? `<li class="ok">🏆 ทายคนดังจบแล้ว! ผู้ชนะ: <b>${f.winners.map(esc).join(', ')}</b></li>` : '<li class="muted">🏁 จบเกมทายคนดัง</li>';
     case 'sk-done': return `<li>✏️ <b>${esc(f.name)}</b> วาดเสร็จเป็นคนที่ ${f.n}</li>`;
     case 'sk-stop': return `<li class="muted">✋ หยุด! ${f.names.length ? `เสร็จก่อน: ${f.names.map(esc).join(', ')}` : 'หมดเวลาวาด'}</li>`;
     case 'sk-guess': return f.text == null ? `<li class="muted">⏱️ ${esc(f.name)} ไม่ได้ทายภาพของ ${esc(f.drawer)}</li>` : `<li class="${f.ok ? 'ok' : 'bad'}">${f.ok ? '🎉' : '❌'} <b>${esc(f.name)}</b> ทายภาพของ ${esc(f.drawer)}: “${esc(f.text)}”</li>`;

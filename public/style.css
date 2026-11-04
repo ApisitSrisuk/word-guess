@@ -810,3 +810,22 @@ body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--
 .sk-board.now { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .sk-board.win { border-color: var(--ok); box-shadow: 0 0 0 2px var(--ok); }
 .sk-boards:not(.single) .sk-board:not(.win) { opacity: .95; }
+
+/* ---- ทายคนดัง ---- */
+.ce-stage { margin-bottom: 12px; }
+.ce-photo { position: relative; width: min(100%, 360px, 46vh); aspect-ratio: 3 / 4; margin: 0 auto 12px; border-radius: 16px; overflow: hidden; background: var(--card); border: 2px solid var(--line); }
+.ce-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; -webkit-user-drag: none; user-select: none; }
+.ce-img-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--muted); background: var(--card); }
+.ce-img-msg[hidden] { display: none; }
+.ce-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 520px; margin: 0 auto; }
+.ce-choices[hidden] { display: none; }
+.ce-choice { min-height: 58px; padding: 8px 10px; font-size: .98rem; line-height: 1.3; background: var(--card); color: var(--ink); border: 2px solid var(--line); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.ce-choice:not(:disabled):hover { border-color: var(--accent); }
+.ce-choice:disabled { opacity: 1; cursor: default; }
+.ce-choice.picked { border-color: var(--accent); background: var(--accent-soft); }
+.ce-choice.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 18%, var(--card)); font-weight: 700; }
+.ce-choice.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, var(--card)); text-decoration: line-through; }
+.ce-who { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.ce-result { margin-top: 12px; }
+.ce-credit { font-size: .75rem; color: var(--muted); text-align: right; margin: 8px 0 0; }
+.ce-credit a { color: inherit; }

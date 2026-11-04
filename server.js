@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const express = require('express');
 const { Server } = require('socket.io');
 const { Room } = require('./game');
+const { celebByToken } = require('./celeb');
 
 const PORT = process.env.PORT || 3456;
 const GRACE_MS = Number(process.env.GRACE_MS) || 10 * 60 * 1000; // หลุดเกินนี้ = เอาออกจากห้อง (ที่นั่ง/คำ/คะแนนเก็บไว้ให้จนถึงตอนนั้น)
@@ -16,6 +17,26 @@ const CHAT_GAP_MS = 400;
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/healthz', (req, res) => res.send('ok'));
+
+// รูปเกมทายคนดัง: ดึงจาก Wikimedia ให้ (ซ่อนชื่อไฟล์ที่มีชื่อคน) + เก็บแคชในหน่วยความจำ
+const imgCache = new Map(); // celeb id -> { type, buf }
+app.get('/celeb-img/:token', async (req, res) => {
+  const c = celebByToken(req.params.token);
+  if (!c) return res.status(404).end();
+  try {
+    let hit = imgCache.get(c.id);
+    if (!hit) {
+      const r = await fetch(c.img, { headers: { 'User-Agent': 'party-game/1.0 (word-guess-game)' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      hit = { type: r.headers.get('content-type') || 'image/jpeg', buf: Buffer.from(await r.arrayBuffer()) };
+      if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value);
+      imgCache.set(c.id, hit);
+    }
+    res.set({ 'Content-Type': hit.type, 'Cache-Control': 'private, max-age=3600' }).send(hit.buf);
+  } catch (e) {
+    res.status(502).end();
+  }
+});
 const server = http.createServer(app);
 // มือถือพับจอ/สลับแอปบ่อย → ping ห่างขึ้นหน่อย กันหลุดง่ายเกิน
 const io = new Server(server, { pingInterval: 20000, pingTimeout: 25000 });
@@ -25,7 +46,7 @@ const socketsOf = new Map(); // playerId -> socket
 const timers = new Map(); // playerId -> { remove, skip }
 
 class GameError extends Error {}
-const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch'];
+const MODES = ['guess', 'undercover', 'center', 'cheese', 'draw', 'codenames', 'liar', 'timeline', 'sheriff', 'poker', 'oldmaid', 'hues', 'sketch', 'celeb'];
 
 // จับเวลาต่อตา: ตาเปลี่ยนเมื่อไหร่ เริ่มนับใหม่ หมดเวลา = ข้ามตา
 function syncTimer(room) {
@@ -52,7 +73,9 @@ function syncTurn(room) {
   room.clearChat();
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
-  if (room.mode === 'sketch') {
+  if (room.mode === 'celeb') {
+    label = `🌟 ทายคนดัง (${room.category}) ${room.ce.qs.length} ข้อ — ยิ่งตอบไวยิ่งได้เยอะ!`;
+  } else if (room.mode === 'sketch') {
     const g = room.players.get(room.sk.guesser);
     label = `⚡ ${g ? g.name : '?'} เป็นคนทาย — คนอื่นแข่งกันวาดให้ไว! (ห้ามบอกคำในแชท)`;
   } else if (room.mode === 'hues') {
@@ -264,6 +287,8 @@ io.on('connection', (socket) => {
           if (MODES.includes(data.mode)) r.nextMode = data.mode;
           if (r.nextMode === 'undercover') {
             r.startUndercover({ mrWhite: !!data.mrWhite });
+          } else if (r.nextMode === 'celeb') {
+            r.startCeleb({ group: data.celebGroup, count: data.celebCount });
           } else if (r.nextMode === 'sketch') {
             r.startSketch();
           } else if (r.nextMode === 'hues') {
@@ -316,6 +341,9 @@ io.on('connection', (socket) => {
           break;
         case 'omDraw':
           out.last = r.omDraw(me.id, data.index);
+          break;
+        case 'ceAnswer':
+          r.ceAnswer(me.id, data.choice);
           break;
         case 'skDone':
           out.rank = r.skDone(me.id, data.strokes);

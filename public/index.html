@@ -21,7 +21,7 @@
           <span>🎯</span><span>🕵️</span><span>❓</span><span>🧀</span><span>🎨</span><span>🟥</span><span>🎲</span><span>📅</span>
         </div>
         <h1>เกมปาร์ตี้<br /><span class="grad">กับเพื่อน</span></h1>
-        <p>13 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
+        <p>14 เกมสนุก ๆ เล่นด้วยกันบนมือถือ — เข้าห้องเดียวกัน แล้วให้หัวห้องเลือกเกม</p>
       </div>
       <form id="loginForm" class="card login-card">
         <label>ชื่อของคุณ<input id="nameInput" maxlength="20" autocomplete="off" placeholder="เช่น มิก" required /></label>
@@ -93,6 +93,21 @@
                 <label id="categoryRow">📚 หมวด
                   <select id="categorySelect"></select>
                 </label>
+                <label id="celebRow" hidden>🌟 คนดัง
+                  <select id="celebGroup">
+                    <option value="th">🇹🇭 คนดังไทย</option>
+                    <option value="intl">🌍 คนดังต่างประเทศ</option>
+                    <option value="mix" selected>🎲 ไทย + ต่างประเทศ</option>
+                  </select>
+                </label>
+                <label id="celebCountRow" hidden>❓ จำนวนข้อ
+                  <select id="celebCount">
+                    <option value="5">5 ข้อ</option>
+                    <option value="10" selected>10 ข้อ</option>
+                    <option value="15">15 ข้อ</option>
+                    <option value="20">20 ข้อ</option>
+                  </select>
+                </label>
                 <label>⏱️ เวลาต่อตา
                   <select id="timeSelect">
                     <option value="30">30 วินาที</option>
@@ -112,6 +127,16 @@
             <button id="startBtn" class="big-btn">🚀 เริ่มเกม</button>
             <p id="waitHost" class="wait-host" hidden>รอหัวห้องกดเริ่มเกม…</p>
             <p id="hostError" class="error"></p>
+          </div>
+
+          <!-- ทายคนดัง: รูป + ตัวเลือก 4 ชื่อ + เฉลย -->
+          <div id="ceStage" class="ce-stage" hidden>
+            <div class="ce-photo">
+              <img id="ceImg" alt="รูปคนดัง ทายว่าเป็นใคร" draggable="false" />
+              <div id="ceImgMsg" class="ce-img-msg" hidden>⏳ กำลังโหลดรูป…</div>
+            </div>
+            <div id="ceChoices" class="ce-choices"></div>
+            <div id="ceResult"></div>
           </div>
 
           <!-- แข่งวาด: คำที่ต้องวาด + กระดานของฉัน + ภาพที่เปิดแล้ว -->
