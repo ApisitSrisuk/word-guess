@@ -19,18 +19,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/healthz', (req, res) => res.send('ok'));
 
 // รูปเกมทายคนดัง: ดึงจาก Wikimedia ให้ (ซ่อนชื่อไฟล์ที่มีชื่อคน) + เก็บแคชในหน่วยความจำ
-const imgCache = new Map(); // celeb id -> { type, buf }
+const imgCache = new Map(); // url รูป -> { type, buf }
 app.get('/celeb-img/:token', async (req, res) => {
   const c = celebByToken(req.params.token);
   if (!c) return res.status(404).end();
   try {
-    let hit = imgCache.get(c.id);
+    let hit = imgCache.get(c.img);
     if (!hit) {
       const r = await fetch(c.img, { headers: { 'User-Agent': 'party-game/1.0 (word-guess-game)' } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       hit = { type: r.headers.get('content-type') || 'image/jpeg', buf: Buffer.from(await r.arrayBuffer()) };
       if (imgCache.size > 300) imgCache.delete(imgCache.keys().next().value);
-      imgCache.set(c.id, hit);
+      imgCache.set(c.img, hit);
     }
     res.set({ 'Content-Type': hit.type, 'Cache-Control': 'private, max-age=3600' }).send(hit.buf);
   } catch (e) {
@@ -74,7 +74,7 @@ function syncTurn(room) {
   io.to(room.code).emit('sync', { clearChat: true });
   let label;
   if (room.mode === 'celeb') {
-    label = `🧩 ทายคนดัง (${room.category}) ${room.ce.qs.length} ข้อ — ผลัดกันเปิดจิ๊กซอแล้วทาย เปิดน้อยได้เยอะ!`;
+    label = `🧩 ทายคนดัง (${room.category}) ${room.ce.qs.length} ข้อ — คนเปิดเปิดทีละชิ้น ที่เหลือแย่งกันตอบ!`;
   } else if (room.mode === 'sketch') {
     const g = room.players.get(room.sk.guesser);
     label = `⚡ ${g ? g.name : '?'} เป็นคนทาย — คนอื่นแข่งกันวาดให้ไว! (ห้ามบอกคำในแชท)`;

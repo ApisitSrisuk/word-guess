@@ -837,6 +837,9 @@ body.my-turn .banner { text-decoration: underline; text-decoration-color: var(--
 .ce-tiles i.tap:hover { background: var(--accent-soft); }
 .ce-tiles i.off { pointer-events: none; }
 @keyframes ce-pulse { 50% { background: var(--accent-soft); } }
-.ce-tiles i { background: var(--card); border: 1px solid var(--line); border-radius: 3px; transition: opacity .35s ease, transform .35s ease; display: flex; align-items: center; justify-content: center; }
+.ce-tiles i { background: var(--card); border: 1px solid var(--line); border-radius: 0; transition: opacity .35s ease, transform .35s ease; display: flex; align-items: center; justify-content: center; }
+.ce-tiles.instant i { transition: none; }
+.ce-tiles.peek i:not(.off) { opacity: .55; }
+.ce-loading .ce-photo img { visibility: hidden; }
 .ce-tiles i::after { content: '?'; font-style: normal; font-weight: 700; color: var(--line); font-size: 1.2rem; }
 .ce-tiles i.off { opacity: 0; transform: scale(.6) rotate(8deg); }

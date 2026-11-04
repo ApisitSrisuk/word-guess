@@ -184,6 +184,167 @@ const LIST = [
   ['Stephen Hawking', 'Stephen Hawking', 'intl', 'm', 'อื่น ๆ'],
   ['Marie Curie', 'Marie Curie', 'intl', 'f', 'อื่น ๆ'],
   ['Malala Yousafzai', 'Malala Yousafzai', 'intl', 'f', 'อื่น ๆ'],
+  // ---- เพิ่มเติม: ไทย
+  ['Prin Suparat', 'มาร์ค ปริญ', 'th', 'm', 'นักแสดง'],
+  ['Esther Supreeleela', 'เอสเธอร์ สุปรีย์ลีลา', 'th', 'f', 'นักแสดง'],
+  ['Suppasit Jongcheveevat', 'มิว ศุภศิษฏ์', 'th', 'm', 'นักแสดง'],
+  ['Tawan Vihokratana', 'เต ตะวัน', 'th', 'm', 'นักแสดง'],
+  ['Kanawut Traipipattanapong', 'กลัฟ คณาวุฒิ', 'th', 'm', 'นักแสดง'],
+  ['Nattawin Wattanagitiphat', 'อาโป ณัฐวิญญ์', 'th', 'm', 'นักแสดง'],
+  ['Phakphum Romsaithong', 'มาย ภาคภูมิ', 'th', 'm', 'นักแสดง'],
+  ['Rebecca Patricia Armstrong', 'เบคกี้ รีเบคก้า', 'th', 'f', 'นักแสดง'],
+  ['Tontawan Tantivejakul', 'ตู ต้นตะวัน', 'th', 'f', 'นักแสดง'],
+  ['Chanon Santinatornkul', 'นนกุล ชานน', 'th', 'm', 'นักแสดง'],
+  ['Supassara Thanachart', 'เก้า สุภัสสรา', 'th', 'f', 'นักแสดง'],
+  ['Natapohn Tameeruks', 'แต้ว ณฐพร', 'th', 'f', 'นักแสดง'],
+  ['Ranee Campen', 'เบลล่า ราณี', 'th', 'f', 'นักแสดง'],
+  ['Thanawat Wattanaputi', 'โป๊ป ธนวรรธน์', 'th', 'm', 'นักแสดง'],
+  ['Sushar Manaying', 'ออม สุชาร์', 'th', 'f', 'นักแสดง'],
+  ['Nittha Jirayungyurn', 'มิว นิษฐา', 'th', 'f', 'นักแสดง'],
+  ['Rasri Balenciaga', 'มาร์กี้ ราศรี', 'th', 'f', 'นักแสดง'],
+  ['Treechada Petcharat', 'ปอย ตรีชฎา', 'th', 'f', 'นักแสดง'],
+  ['Jarinporn Joonkiat', 'เต้ย จรินทร์พร', 'th', 'f', 'นักแสดง'],
+  ['James Ma (actor)', 'เจมส์ มาร์', 'th', 'm', 'นักแสดง'],
+  ['Puttichai Kasetsin', 'พุฒ พุฒิชัย', 'th', 'm', 'นักแสดง'],
+  ['Jesdaporn Pholdee', 'ติ๊ก เจษฎาภรณ์', 'th', 'm', 'นักแสดง'],
+  ['Andrew Gregson', 'แอนดริว เกร้กสัน', 'th', 'm', 'นักแสดง'],
+  ['Metinee Kingpayome', 'ลูกเกด เมทินี', 'th', 'f', 'นักแสดง'],
+  ['Cindy Bishop', 'ซินดี้ บิชอพ', 'th', 'f', 'นักแสดง'],
+  ['Patcharapa Chaichua', 'อั้ม พัชราภา', 'th', 'f', 'นักแสดง'],
+  ['Pakin Kunaanuwit', 'โตโน่ ภาคิน', 'th', 'm', 'นักร้อง'],
+  ['Perawat Sangpotirat', 'คริส พีรวัส', 'th', 'm', 'นักแสดง'],
+  ['Prachaya Ruangroj', 'สิงโต ปราชญา', 'th', 'm', 'นักแสดง'],
+  ['Jumpol Adulkittiporn', 'ออฟ จุมพล', 'th', 'm', 'นักแสดง'],
+  ['Atthaphan Phunsawat', 'กัน อรรถพันธ์', 'th', 'm', 'นักแสดง'],
+  ['Korapat Kirdpan', 'นนน กรภัทร์', 'th', 'm', 'นักแสดง'],
+  ['Pawat Chittsawangdee', 'โอม ภวัต', 'th', 'm', 'นักแสดง'],
+  ['Chawarin Perdpiriyawong', 'นุนิว ชวรินทร์', 'th', 'm', 'นักร้อง'],
+  ['Sukrit Wisetkaew', 'บี้ สุกฤษฎิ์', 'th', 'm', 'นักร้อง'],
+  ['Artiwara Kongmalai', 'ตูน บอดี้สแลม', 'th', 'm', 'นักร้อง'],
+  ['Nat Sakdatorn', 'แนท ศักดาทร', 'th', 'm', 'นักร้อง'],
+  ['Joey Boy', 'โจอี้ บอย', 'th', 'm', 'นักร้อง'],
+  ['Violette Wautier', 'วี วิโอเลต', 'th', 'f', 'นักร้อง'],
+  ['Waruntorn Paonil', 'อิ้งค์ วรันธร', 'th', 'f', 'นักร้อง'],
+  ['Apiwat Ueathavornsuk', 'แสตมป์ อภิวัชร์', 'th', 'm', 'นักร้อง'],
+  ['Chanakan Pumphanmuang', 'อะตอม ชนกันต์', 'th', 'm', 'นักร้อง'],
+  ['Lula (singer)', 'ลุลา', 'th', 'f', 'นักร้อง'],
+  ['Kawin Thamsatchanan', 'กวินทร์ ธรรมสัจจานันท์', 'th', 'm', 'นักกีฬา'],
+  ['Theerathon Bunmathan', 'ธีราทร บุญมาทัน', 'th', 'm', 'นักกีฬา'],
+  ['Nualphan Lamsam', 'มาดามแป้ง นวลพรรณ', 'th', 'f', 'อื่น ๆ'],
+  ['Chanettee Wannasaen', 'ชเนตตี วรรณแสน', 'th', 'f', 'นักกีฬา'],
+  ['Tanaporn Prakaithong', 'ธนพร ประกายทอง', 'th', 'f', 'นักกีฬา'],
+  ['Sasha Bou', 'ซาช่า', 'th', 'f', 'อื่น ๆ'],
+  // ---- เพิ่มเติม: ต่างประเทศ
+  ['Olivia Rodrigo', 'Olivia Rodrigo', 'intl', 'f', 'นักร้อง'],
+  ['Sabrina Carpenter', 'Sabrina Carpenter', 'intl', 'f', 'นักร้อง'],
+  ['Doja Cat', 'Doja Cat', 'intl', 'f', 'นักร้อง'],
+  ['Post Malone', 'Post Malone', 'intl', 'm', 'นักร้อง'],
+  ['Drake (musician)', 'Drake', 'intl', 'm', 'นักร้อง'],
+  ['Snoop Dogg', 'Snoop Dogg', 'intl', 'm', 'นักร้อง'],
+  ['Celine Dion', 'Celine Dion', 'intl', 'f', 'นักร้อง'],
+  ['Mariah Carey', 'Mariah Carey', 'intl', 'f', 'นักร้อง'],
+  ['Whitney Houston', 'Whitney Houston', 'intl', 'f', 'นักร้อง'],
+  ['Britney Spears', 'Britney Spears', 'intl', 'f', 'นักร้อง'],
+  ['Jennifer Lopez', 'Jennifer Lopez', 'intl', 'f', 'นักร้อง'],
+  ['Chris Martin', 'Chris Martin (Coldplay)', 'intl', 'm', 'นักร้อง'],
+  ['Shawn Mendes', 'Shawn Mendes', 'intl', 'm', 'นักร้อง'],
+  ['Charlie Puth', 'Charlie Puth', 'intl', 'm', 'นักร้อง'],
+  ['Jin (singer)', 'Jin (BTS)', 'intl', 'm', 'K-pop'],
+  ['Suga (rapper)', 'Suga (BTS)', 'intl', 'm', 'K-pop'],
+  ['J-Hope', 'J-Hope (BTS)', 'intl', 'm', 'K-pop'],
+  ['Karina (singer)', 'Karina (aespa)', 'intl', 'f', 'K-pop'],
+  ['Winter (singer)', 'Winter (aespa)', 'intl', 'f', 'K-pop'],
+  ['Jang Won-young', 'Jang Won-young', 'intl', 'f', 'K-pop'],
+  ['G-Dragon', 'G-Dragon', 'intl', 'm', 'K-pop'],
+  ['Cha Eun-woo', 'Cha Eun-woo', 'intl', 'm', 'K-pop'],
+  ['Park Bo-gum', 'Park Bo-gum', 'intl', 'm', 'นักแสดง'],
+  ['Kim Soo-hyun', 'Kim Soo-hyun', 'intl', 'm', 'นักแสดง'],
+  ['Song Hye-kyo', 'Song Hye-kyo', 'intl', 'f', 'นักแสดง'],
+  ['Jun Ji-hyun', 'Jun Ji-hyun', 'intl', 'f', 'นักแสดง'],
+  ['Lee Jong-suk', 'Lee Jong-suk', 'intl', 'm', 'นักแสดง'],
+  ['Kim Go-eun', 'Kim Go-eun', 'intl', 'f', 'นักแสดง'],
+  ['Xiao Zhan', 'Xiao Zhan', 'intl', 'm', 'นักแสดง'],
+  ['Wang Yibo', 'Wang Yibo', 'intl', 'm', 'นักแสดง'],
+  ['Dilraba Dilmurat', 'Dilraba Dilmurat', 'intl', 'f', 'นักแสดง'],
+  ['Yang Mi', 'Yang Mi', 'intl', 'f', 'นักแสดง'],
+  ['Zhao Lusi', 'Zhao Lusi', 'intl', 'f', 'นักแสดง'],
+  ['Tony Leung Chiu-wai', 'Tony Leung', 'intl', 'm', 'นักแสดง'],
+  ['Chow Yun-fat', 'Chow Yun-fat', 'intl', 'm', 'นักแสดง'],
+  ['Donnie Yen', 'Donnie Yen', 'intl', 'm', 'นักแสดง'],
+  ['Takeshi Kaneshiro', 'Takeshi Kaneshiro', 'intl', 'm', 'นักแสดง'],
+  ['Ken Watanabe', 'Ken Watanabe', 'intl', 'm', 'นักแสดง'],
+  ['Shah Rukh Khan', 'Shah Rukh Khan', 'intl', 'm', 'นักแสดง'],
+  ['Priyanka Chopra', 'Priyanka Chopra', 'intl', 'f', 'นักแสดง'],
+  ['Pedro Pascal', 'Pedro Pascal', 'intl', 'm', 'นักแสดง'],
+  ['Ryan Reynolds', 'Ryan Reynolds', 'intl', 'm', 'นักแสดง'],
+  ['Ryan Gosling', 'Ryan Gosling', 'intl', 'm', 'นักแสดง'],
+  ['Chris Evans', 'Chris Evans', 'intl', 'm', 'นักแสดง'],
+  ['Chris Pratt', 'Chris Pratt', 'intl', 'm', 'นักแสดง'],
+  ['Mark Ruffalo', 'Mark Ruffalo', 'intl', 'm', 'นักแสดง'],
+  ['Benedict Cumberbatch', 'Benedict Cumberbatch', 'intl', 'm', 'นักแสดง'],
+  ['Tom Hanks', 'Tom Hanks', 'intl', 'm', 'นักแสดง'],
+  ['Denzel Washington', 'Denzel Washington', 'intl', 'm', 'นักแสดง'],
+  ['Samuel L. Jackson', 'Samuel L. Jackson', 'intl', 'm', 'นักแสดง'],
+  ['Nicole Kidman', 'Nicole Kidman', 'intl', 'f', 'นักแสดง'],
+  ['Julia Roberts', 'Julia Roberts', 'intl', 'f', 'นักแสดง'],
+  ['Sandra Bullock', 'Sandra Bullock', 'intl', 'f', 'นักแสดง'],
+  ['Anne Hathaway', 'Anne Hathaway', 'intl', 'f', 'นักแสดง'],
+  ['Emma Stone', 'Emma Stone', 'intl', 'f', 'นักแสดง'],
+  ['Robert Pattinson', 'Robert Pattinson', 'intl', 'm', 'นักแสดง'],
+  ['Kristen Stewart', 'Kristen Stewart', 'intl', 'f', 'นักแสดง'],
+  ['Vin Diesel', 'Vin Diesel', 'intl', 'm', 'นักแสดง'],
+  ['Jason Statham', 'Jason Statham', 'intl', 'm', 'นักแสดง'],
+  ['Sylvester Stallone', 'Sylvester Stallone', 'intl', 'm', 'นักแสดง'],
+  ['Henry Cavill', 'Henry Cavill', 'intl', 'm', 'นักแสดง'],
+  ['Cillian Murphy', 'Cillian Murphy', 'intl', 'm', 'นักแสดง'],
+  ['Florence Pugh', 'Florence Pugh', 'intl', 'f', 'นักแสดง'],
+  ['Millie Bobby Brown', 'Millie Bobby Brown', 'intl', 'f', 'นักแสดง'],
+  ['Jenna Ortega', 'Jenna Ortega', 'intl', 'f', 'นักแสดง'],
+  ['Anya Taylor-Joy', 'Anya Taylor-Joy', 'intl', 'f', 'นักแสดง'],
+  ['Kevin Hart', 'Kevin Hart', 'intl', 'm', 'นักแสดง'],
+  ['Eddie Murphy', 'Eddie Murphy', 'intl', 'm', 'นักแสดง'],
+  ['Kevin De Bruyne', 'Kevin De Bruyne', 'intl', 'm', 'นักกีฬา'],
+  ['Luka Modrić', 'Luka Modrić', 'intl', 'm', 'นักกีฬา'],
+  ['Robert Lewandowski', 'Robert Lewandowski', 'intl', 'm', 'นักกีฬา'],
+  ['Harry Kane', 'Harry Kane', 'intl', 'm', 'นักกีฬา'],
+  ['Zlatan Ibrahimović', 'Zlatan Ibrahimović', 'intl', 'm', 'นักกีฬา'],
+  ['Ronaldinho', 'Ronaldinho', 'intl', 'm', 'นักกีฬา'],
+  ['Pelé', 'Pelé', 'intl', 'm', 'นักกีฬา'],
+  ['Diego Maradona', 'Diego Maradona', 'intl', 'm', 'นักกีฬา'],
+  ['Zinedine Zidane', 'Zinedine Zidane', 'intl', 'm', 'นักกีฬา'],
+  ['Thierry Henry', 'Thierry Henry', 'intl', 'm', 'นักกีฬา'],
+  ['Wayne Rooney', 'Wayne Rooney', 'intl', 'm', 'นักกีฬา'],
+  ['Steven Gerrard', 'Steven Gerrard', 'intl', 'm', 'นักกีฬา'],
+  ['Virgil van Dijk', 'Virgil van Dijk', 'intl', 'm', 'นักกีฬา'],
+  ['Jude Bellingham', 'Jude Bellingham', 'intl', 'm', 'นักกีฬา'],
+  ['Vinícius Júnior', 'Vinícius Júnior', 'intl', 'm', 'นักกีฬา'],
+  ['Lamine Yamal', 'Lamine Yamal', 'intl', 'm', 'นักกีฬา'],
+  ['Kobe Bryant', 'Kobe Bryant', 'intl', 'm', 'นักกีฬา'],
+  ["Shaquille O'Neal", "Shaquille O'Neal", 'intl', 'm', 'นักกีฬา'],
+  ['Victor Wembanyama', 'Victor Wembanyama', 'intl', 'm', 'นักกีฬา'],
+  ['Carlos Alcaraz', 'Carlos Alcaraz', 'intl', 'm', 'นักกีฬา'],
+  ['Jannik Sinner', 'Jannik Sinner', 'intl', 'm', 'นักกีฬา'],
+  ['Max Verstappen', 'Max Verstappen', 'intl', 'm', 'นักกีฬา'],
+  ['Michael Schumacher', 'Michael Schumacher', 'intl', 'm', 'นักกีฬา'],
+  ['Valentino Rossi', 'Valentino Rossi', 'intl', 'm', 'นักกีฬา'],
+  ['Manny Pacquiao', 'Manny Pacquiao', 'intl', 'm', 'นักกีฬา'],
+  ['Floyd Mayweather Jr.', 'Floyd Mayweather Jr.', 'intl', 'm', 'นักกีฬา'],
+  ['Conor McGregor', 'Conor McGregor', 'intl', 'm', 'นักกีฬา'],
+  ['Mike Tyson', 'Mike Tyson', 'intl', 'm', 'นักกีฬา'],
+  ['Lin Dan', 'Lin Dan', 'intl', 'm', 'นักกีฬา'],
+  ['Viktor Axelsen', 'Viktor Axelsen', 'intl', 'm', 'นักกีฬา'],
+  ['An Se-young', 'An Se-young', 'intl', 'f', 'นักกีฬา'],
+  ['Coco Gauff', 'Coco Gauff', 'intl', 'f', 'นักกีฬา'],
+  ['Nikola Tesla', 'Nikola Tesla', 'intl', 'm', 'อื่น ๆ'],
+  ['Walt Disney', 'Walt Disney', 'intl', 'm', 'อื่น ๆ'],
+  ['Warren Buffett', 'Warren Buffett', 'intl', 'm', 'อื่น ๆ'],
+  ['Tim Cook', 'Tim Cook', 'intl', 'm', 'อื่น ๆ'],
+  ['Jensen Huang', 'Jensen Huang', 'intl', 'm', 'อื่น ๆ'],
+  ['Sam Altman', 'Sam Altman', 'intl', 'm', 'อื่น ๆ'],
+  ['Sundar Pichai', 'Sundar Pichai', 'intl', 'm', 'อื่น ๆ'],
+  ['Martha Stewart', 'Martha Stewart', 'intl', 'f', 'อื่น ๆ'],
+  ['Paris Hilton', 'Paris Hilton', 'intl', 'f', 'อื่น ๆ'],
+  ['Kylie Jenner', 'Kylie Jenner', 'intl', 'f', 'อื่น ๆ'],
 ];
 
 const UA = { 'User-Agent': 'party-game-builder/1.0 (contact: apisit)' };
@@ -201,23 +362,55 @@ async function query(titles) {
   };
 }
 
+// รูปเพิ่มเติมจากหน้าเดียวกัน: ไฟล์ที่มีชื่อเต็มของคนนั้น ไม่ใช่รูปหมู่ (ไม่มี and/vs) เป็นรูปถ่ายแนวตั้ง/จัตุรัส (มักเป็นรูปหน้า) — ได้คนละไม่เกิน 4 รูป
+const SKIP = /\band\b|\bvs\b|\bv\b|&|with|tussauds|mugshot|shirt|maillot|park|court|walk of fame|signature|autograph|logo|poster|cover|album|map|flag|stadium|award|trophy|chart|diagram|statue|wax|grave|tomb|house|car\b|team|squad|crowd|stage|concert|tour|svg/i;
+async function extraImages(title, mainFile) {
+  const tokens = title.replace(/\(.*\)/, '').split(/[\s.-]+/).filter((w) => w.length >= 3).map((w) => w.toLowerCase());
+  const j1 = await (await fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&prop=images&imlimit=100&titles=' + encodeURIComponent(title), { headers: UA })).json();
+  const files = Object.values(j1.query.pages).flatMap((p) => (p.images || []).map((x) => x.title))
+    .filter((f) => /\.(jpe?g|png|webp)$/i.test(f) && !SKIP.test(f.replace(/_/g, ' ')) && f.replace(/_/g, ' ') !== 'File:' + String(mainFile || '').replace(/_/g, ' '))
+    .filter((f) => tokens.every((t) => f.toLowerCase().replace(/_/g, ' ').includes(t))) // ต้องมีชื่อเต็มของคนนั้น (กันรูปคนอื่น)
+    .slice(0, 12);
+  if (!files.length) return [];
+  const j2 = await (await fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=500&titles=' + encodeURIComponent(files.join('|')), { headers: UA })).json();
+  return Object.values(j2.query.pages)
+    .map((p) => p.imageinfo && p.imageinfo[0])
+    .filter((ii) => ii && ii.thumburl && ii.height >= ii.width * 0.95 && ii.width >= 250)
+    .map((ii) => ii.thumburl.replace(/\?.*$/, ''))
+    .slice(0, 3);
+}
+async function retry(fn, n = 4) {
+  for (let i = 0; ; i++) {
+    try { return await fn(); } catch (e) { if (i >= n) throw e; await new Promise((r) => setTimeout(r, 1500 * (i + 1))); }
+  }
+}
+
 (async () => {
   const out = [];
   const miss = [];
   for (let i = 0; i < LIST.length; i += 40) {
     const chunk = LIST.slice(i, i + 40);
-    const get = await query(chunk.map((x) => x[0]));
+    const get = await retry(() => query(chunk.map((x) => x[0])));
     for (const [title, name, group, sex, kind] of chunk) {
       const p = get(title);
       if (!p || p.missing !== undefined || !p.thumbnail) { miss.push(title); continue; }
-      const img = p.thumbnail.source.replace(/\?.*$/, '');
-      out.push({ name, group, sex, kind, img, file: p.pageimage, page: p.fullurl });
+      out.push({ title: p.title, name, group, sex, kind, img: p.thumbnail.source.replace(/\?.*$/, ''), file: p.pageimage, page: p.fullurl });
     }
   }
   const dup = new Set();
   const final = out.filter((c) => !dup.has(c.name) && dup.add(c.name));
-  const body = `// คนดังสำหรับเกม "ทายคนดัง" — รูปจาก Wikipedia / Wikimedia Commons (สัญญาอนุญาตเสรี ดูเครดิตที่ลิงก์ page)\n// สร้างอัตโนมัติจาก Wikipedia API (thumbnail 500px) · group: th = ไทย, intl = ต่างประเทศ\nmodule.exports = ${JSON.stringify(final.map((c, i) => ({ id: i + 1, ...c })), null, 1)};\n`;
+  // ดึงรูปเพิ่ม ทีละ 6 คนพร้อมกัน
+  for (let i = 0; i < final.length; i += 6) {
+    await Promise.all(final.slice(i, i + 6).map(async (c) => {
+      const more = await retry(() => extraImages(c.title, c.file)).catch(() => []);
+      c.imgs = [c.img, ...more.filter((u) => u !== c.img)];
+    }));
+    process.stdout.write('.');
+  }
+  const rows = final.map((c, i) => ({ id: i + 1, name: c.name, group: c.group, sex: c.sex, kind: c.kind, imgs: c.imgs, page: c.page }));
+  const body = `// คนดังสำหรับเกม "ทายคนดัง" — รูปจาก Wikipedia / Wikimedia Commons (สัญญาอนุญาตเสรี ดูเครดิตที่ลิงก์ page)\n// สร้างอัตโนมัติด้วย scripts/build-celebs.js · group: th = ไทย, intl = ต่างประเทศ · imgs: รูปของคนนั้น (สุ่มใช้)\nmodule.exports = ${JSON.stringify(rows, null, 1)};\n`;
   fs.writeFileSync(OUT, body);
-  console.log('ได้', final.length, 'คน · ไทย', final.filter((c) => c.group === 'th').length, '· ต่างประเทศ', final.filter((c) => c.group === 'intl').length);
+  const imgs = rows.reduce((n, c) => n + c.imgs.length, 0);
+  console.log('\nได้', rows.length, 'คน · ไทย', rows.filter((c) => c.group === 'th').length, '· ต่างประเทศ', rows.filter((c) => c.group === 'intl').length, '· รูปทั้งหมด', imgs);
   console.log('ไม่มีรูป/ไม่พบ:', miss.join(', '));
 })();

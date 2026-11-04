@@ -231,6 +231,7 @@ class Room {
     if (this.mode === 'cheese') return this.chCheckVotes();
     if (this.mode === 'hues' && this.state === 'playing') return this.hcCheckPlaced();
     if (this.mode === 'sketch' && this.state === 'playing') return this.skCheckStop();
+    if (this.mode === 'celeb' && this.state === 'playing') return this.ceAutoSkip();
     return false;
   }
 
@@ -341,7 +342,7 @@ class Room {
     if (this.mode === 'oldmaid') return false; // ต้องดึงเอง (หมดเวลา = สุ่มดึงให้)
     if (this.mode === 'hues') return this.hcPass(id); // คนใบ้/หัวห้องกดไปต่อ ไม่ต้องรอหมุดครบ
     if (this.mode === 'sketch') return this.skPass(id); // คนทายยอมแพ้ภาพนี้ / หัวห้องกดหยุดวาด
-    if (this.mode === 'celeb') return this.cePass(id); // ส่งต่อ (คนที่ถึงตา) / ข้ามข้อ (หัวห้อง)
+    if (this.mode === 'celeb') return this.cePass(id); // หัวห้องข้ามข้อ
     const cur = this.players.get(this.currentTurnId());
     const by = me.id !== this.currentTurnId() ? me.name : undefined;
     this.feed.push({ type: 'pass', name: cur ? cur.name : '?', by });

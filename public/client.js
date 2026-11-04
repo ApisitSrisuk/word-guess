@@ -1016,7 +1016,7 @@ $('kickNoBtn').addEventListener('click', (e) => act(e.currentTarget, 'kickVote',
 
 const MODE_NAME = { celeb: '🌟 ทายคนดัง', sketch: '⚡ แข่งวาด', hues: '🎨 ใบ้สี', oldmaid: '👵 อีแก่กินน้ำ', poker: '🃏 โป๊กเกอร์แมว', sheriff: '👮 ผู้ตรวจการ', timeline: '📅 Timeline', guess: '🎯 ทายคำ', undercover: '🕵️ ใครคือสปาย', center: '❓ ทายคำตรงกลาง', cheese: '🧀 หัวขโมยชีส', draw: '🎨 วาดภาพทายคำ', codenames: '🟥🟦 Codenames', liar: '🎲 เต๋าโกหก' };
 const MODE_HINT = {
-  celeb: 'รูปคนดังถูกปิดด้วยจิ๊กซอ 20 ชิ้น ผลัดกันเปิดทีละชิ้นแล้วทายจาก 4 ชื่อ (หรือส่งต่อ) ทายผิดหมดสิทธิ์ข้อนั้น เปิดน้อยแล้วทายถูกได้เยอะ (สูงสุด 10) — เลือกได้ว่าคนดังไทย ต่างประเทศ หรือผสม · รูปจาก Wikipedia (1 คนขึ้นไป)',
+  celeb: 'รูปคนดังถูกปิดด้วยจิ๊กซอ 20 ชิ้น ผลัดกันเป็นคนเปิด (รู้คำตอบ) เปิดทีละชิ้น คนที่เหลือแย่งกันตอบจาก 4 ชื่อ คนแรกที่ถูกได้แต้ม (เปิดน้อยได้เยอะ สูงสุด 10) คนเปิดได้ครึ่งหนึ่ง ตอบผิดหมดสิทธิ์ข้อนั้น — เลือกคนดังไทย/ต่างประเทศ/ผสม · รูปจาก Wikipedia (2 คนขึ้นไป)',
   sketch: 'Catch Sketch — 1 คนเป็นคนทาย คนอื่นเห็นคำเดียวกันแล้วแข่งกันวาดให้ไว (ห้ามเขียนตัวหนังสือ) วาดเสร็จก่อนได้เปิดภาพก่อน คนทายทายถูกภาพไหน คนทายกับคนวาดภาพนั้นได้แต้มคู่กัน — ภาพแรก 3 · ภาพสอง 2 · ถัดไป 1 (3 คนขึ้นไป)',
   hues: 'Hues and Cues — คนใบ้เลือก 1 สีจากกระดาน 480 สี แล้วใบ้ 1 คำ (ห้ามชื่อสี) ทุกคนวางหมุด → ใบ้เพิ่มอีกไม่เกิน 2 คำ วางหมุดที่ 2 → เฉลย! ตรงช่อง 3 · ใกล้ 2 · ห่าง 2 ช่อง 1 (2 คนขึ้นไป)',
   guess: 'ทุกคนได้คำลับไม่ซ้ำกัน เห็นคำตัวเอง แล้วผลัดกันทายคำของเพื่อน',
@@ -1131,7 +1131,7 @@ const GAMES = [
   { mode: 'timeline', emoji: '📅', name: 'Timeline', short: 'เรียงเหตุการณ์ก่อน-หลัง', min: 2 },
   { mode: 'sheriff', emoji: '👮', name: 'ผู้ตรวจการ', short: 'ลักลอบของเถื่อน ติดสินบน', min: 3 },
   { mode: 'oldmaid', emoji: '👵', name: 'อีแก่กินน้ำ', short: 'ดึงไพ่จับคู่ อย่าติดอีแก่!', min: 2 },
-  { mode: 'celeb', emoji: '🌟', name: 'ทายคนดัง', short: 'ดูรูปแล้วทายว่าใคร ไทย/ต่างประเทศ', min: 1 },
+  { mode: 'celeb', emoji: '🧩', name: 'ทายคนดัง', short: 'เปิดจิ๊กซอ แย่งกันทายว่าใคร', min: 2 },
   { mode: 'sketch', emoji: '⚡', name: 'แข่งวาด', short: 'Catch Sketch วาดให้ไว ให้เพื่อนทาย', min: 3 },
   { mode: 'hues', emoji: '🎨', name: 'ใบ้สี', short: 'Hues and Cues ใบ้คำ ทายสี', min: 2 },
   { mode: 'poker', emoji: '🃏', name: 'โป๊กเกอร์แมว', short: 'Texas Hold\'em ไพ่ธีมแมว 😺', min: 2 },
@@ -1396,11 +1396,11 @@ function renderUndercover(s, me, isHost, turnPlayer) {
   $('closeVoteBtn').hidden = !(isHost && uc.phase === 'vote');
 }
 
-// ---------- ทายคนดัง (เปิดจิ๊กซอผลัดกันทาย) ----------
+// ---------- ทายคนดัง (เปิดจิ๊กซอ แย่งกันตอบ) ----------
 let ceImgSrc = '';
 const cePreloaded = new Set();
 $('ceTiles').innerHTML = Array.from({ length: 20 }, (_, i) => `<i data-t="${i}"></i>`).join('');
-// ตาเรา: แตะชิ้นที่ยังปิดเพื่อเปิด
+// คนเปิด: แตะชิ้นที่ยังปิดเพื่อเปิด
 $('ceTiles').addEventListener('click', (e) => {
   const t = e.target.closest('i.tap');
   if (!t) return;
@@ -1410,15 +1410,15 @@ $('ceResult').addEventListener('click', (e) => {
   const b = e.target.closest('[data-ce-pass]');
   if (b) act(b, 'pass', {});
 });
-$('ceImg').addEventListener('load', () => { $('ceImgMsg').hidden = true; });
+// รูปใหม่: ซ่อนไว้จนโหลดเสร็จ (จิ๊กซอปิดครบแล้ว) กันเห็นรูปแวบก่อน
+$('ceImg').addEventListener('load', () => { $('ceImgMsg').hidden = true; $('ceStage').classList.remove('ce-loading'); });
 $('ceImg').addEventListener('error', () => { $('ceImgMsg').hidden = false; $('ceImgMsg').textContent = '😢 โหลดรูปไม่ได้ (หัวห้องกดข้ามข้อได้)'; });
-$('ceChoices').addEventListener('click', (e) => {
+// แย่งกันตอบ: แตะครั้งเดียวส่งเลย
+$('ceChoices').addEventListener('click', async (e) => {
   const b = e.target.closest('button[data-choice]');
   if (!b || b.disabled) return;
-  confirmTap(b, `ทาย “${b.dataset.name}”? แตะอีกครั้ง`, async () => {
-    const res = await act(b, 'ceAnswer', { choice: Number(b.dataset.choice) });
-    if (res && !res.error) toast(res.correct ? `🎉 ถูกต้อง! +${res.pts} แต้ม` : '❌ ผิด! หมดสิทธิ์ทายข้อนี้', res.correct ? [100, 50, 100] : 80);
-  });
+  const res = await act(b, 'ceAnswer', { choice: Number(b.dataset.choice) });
+  if (res && !res.error) toast(res.correct ? `🎉 ถูกต้อง! +${res.pts} แต้ม` : '❌ ผิด! หมดสิทธิ์ตอบข้อนี้', res.correct ? [100, 50, 100] : 80);
 });
 
 function renderCeleb(s, me, isHost) {
@@ -1426,85 +1426,76 @@ function renderCeleb(s, me, isHost) {
   const over = e.phase === 'over';
   const open = e.phase === 'reveal' || over;
   const nameOf = (id) => (s.players.find((p) => p.id === id) || {}).name || '?';
-  const myTurn = e.phase === 'q' && e.current === s.me;
-  const curName = myTurn ? 'คุณ' : nameOf(e.current);
+  const amOpener = e.phase === 'q' && e.opener === s.me;
   const amOut = e.out.includes(s.me);
   $('guessForm').hidden = true;
   $('ucBar').hidden = true;
   $('myCard').innerHTML = '';
+  $('turnStrip').hidden = true;
   $('ceStage').hidden = false;
 
-  // รูป (เปลี่ยน src เฉพาะตอนเปลี่ยนข้อ) + โหลดรูปข้อถัดไปรอไว้
-  if (ceImgSrc !== e.img) {
+  // จิ๊กซอ: ข้อใหม่ = ปิดทุกชิ้นทันที (ไม่มีแอนิเมชัน) แล้วค่อยเปลี่ยนรูป
+  const newImg = ceImgSrc !== e.img;
+  $('ceTiles').classList.toggle('instant', newImg);
+  const last = e.opened[e.opened.length - 1];
+  for (const t of $('ceTiles').children) {
+    const i = Number(t.dataset.t);
+    const off = open || e.opened.includes(i);
+    t.classList.toggle('off', off);
+    t.classList.toggle('tap', amOpener && !off);
+    t.classList.toggle('last', !open && i === last);
+  }
+  $('ceTiles').classList.toggle('my-turn', amOpener);
+  $('ceTiles').classList.toggle('peek', amOpener); // คนเปิดเห็นรูปจาง ๆ ใต้จิ๊กซอ
+  if (newImg) {
     ceImgSrc = e.img;
+    $('ceStage').classList.add('ce-loading');
     $('ceImgMsg').hidden = false;
     $('ceImgMsg').textContent = '⏳ กำลังโหลดรูป…';
     $('ceImg').src = e.img;
+    requestAnimationFrame(() => requestAnimationFrame(() => $('ceTiles').classList.remove('instant')));
   }
   if (e.nextImg && !cePreloaded.has(e.nextImg)) {
     cePreloaded.add(e.nextImg);
     new Image().src = e.nextImg;
   }
 
-  // จิ๊กซอ: ชิ้นที่เปิดแล้วหายไป · ตาเรา (ยังไม่เปิด) แตะได้ · เฉลย = เปิดหมด
-  const canOpen = myTurn && e.step === 'open';
-  const last = e.opened[e.opened.length - 1];
-  for (const t of $('ceTiles').children) {
-    const i = Number(t.dataset.t);
-    const off = open || e.opened.includes(i);
-    t.classList.toggle('off', off);
-    t.classList.toggle('tap', canOpen && !off);
-    t.classList.toggle('last', !open && i === last);
-  }
-  $('ceTiles').classList.toggle('my-turn', canOpen);
-
-  // ลำดับผลัดกันเล่น
-  $('turnStrip').hidden = open;
-  $('turnStrip').innerHTML = e.order.filter((x) => s.players.some((p) => p.id === x)).map((x) => {
-    const cls = [x === e.current && 'now', e.out.includes(x) && 'done'].filter(Boolean).join(' ');
-    return `<li class="${cls}">${esc(nameOf(x))}${x === s.me ? ' (ฉัน)' : ''}${e.out.includes(x) ? ' ❌' : ''}</li>`;
-  }).join('');
-  $('turnStrip').querySelector('.now')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-
   // ป้าย
   if (over) $('banner').textContent = e.winners && e.winners.length ? `🏆 ${e.winners.join(', ')} ชนะเกมทายคนดัง!` : '🏁 จบเกมทายคนดัง';
-  else if (open) $('banner').textContent = e.result ? `🎉 ${nameOf(e.result.by)} ทายถูก! คือ ${e.answer.name}` : `😅 ไม่มีใครทายถูก — คือ ${e.answer.name}`;
-  else if (myTurn) $('banner').textContent = e.step === 'open' ? '🧩 ตาคุณ! แตะเปิดจิ๊กซอ 1 ชิ้น' : `🤔 ทายเลย (+${e.nowPts}) หรือส่งต่อ`;
-  else $('banner').textContent = amOut ? `❌ คุณหมดสิทธิ์ข้อนี้ — ตาของ ${curName}` : `⏳ ตาของ ${curName} ${e.step === 'open' ? 'กำลังเลือกเปิดชิ้น' : 'กำลังคิด…'}`;
+  else if (open) $('banner').textContent = e.result ? `🎉 ${nameOf(e.result.by)} ตอบถูก! คือ ${e.answer.name}` : `😅 ไม่มีใครตอบถูก — คือ ${e.answer.name}`;
+  else if (amOpener) $('banner').textContent = `🧩 คุณเป็นคนเปิด — คือ “${e.answer.name}” แตะเปิดทีละชิ้น`;
+  else if (amOut) $('banner').textContent = '❌ คุณตอบผิดแล้ว รอข้อหน้านะ';
+  else $('banner').textContent = e.opened.length ? `⚡ แย่งกันตอบ! ตอบถูกตอนนี้ได้ +${e.nowPts}` : `⏳ รอ ${nameOf(e.opener)} เปิดชิ้นแรก…`;
   $('subBanner').hidden = false;
-  $('subBanner').innerHTML = over ? 'ดูคะแนนรวมในตารางอันดับ' : `ข้อ ${e.n}/${e.total} · ${{ th: '🇹🇭 คนดังไทย', intl: '🌍 ต่างประเทศ', mix: '🎲 ไทย + ต่างประเทศ' }[e.group]} · เปิดแล้ว ${open ? e.tiles : e.opened.length}/${e.tiles} ชิ้น${open ? '' : ` · ทายถูกตอนนี้ได้ +${e.nowPts}`}`;
+  $('subBanner').innerHTML = over ? 'ดูคะแนนรวมในตารางอันดับ' : `ข้อ ${e.n}/${e.total} · ${{ th: '🇹🇭 คนดังไทย', intl: '🌍 ต่างประเทศ', mix: '🎲 ไทย + ต่างประเทศ' }[e.group]} · คนเปิด: <b>${esc(amOpener ? 'คุณ' : nameOf(e.opener))}</b> · เปิดแล้ว ${open ? e.tiles : e.opened.length}/${e.tiles} ชิ้น`;
 
-  // ตัวเลือก: ถึงตาเราและเปิดแล้วถึงจะกดทายได้ · ชื่อที่มีคนทายผิดแล้วขีดฆ่า
+  // ตัวเลือก: คนตอบกดได้ทันที (หลังเปิดชิ้นแรก) · ชื่อที่มีคนตอบผิดแล้วขีดฆ่า
   const wrongBy = {};
   for (const g of e.guesses) if (!g.ok) (wrongBy[g.choice] = wrongBy[g.choice] || []).push(g.id);
-  const canGuess = myTurn && e.step === 'guess';
+  const canAnswer = e.phase === 'q' && !amOpener && !amOut && e.opened.length > 0 && e.opener !== s.me;
   $('ceChoices').hidden = over;
-  const choicesHtml = e.choices.map((c) => {
+  $('ceChoices').innerHTML = e.choices.map((c) => {
     const bad = wrongBy[c.id];
-    const cls = ['ce-choice', open && c.id === e.answer.id && 'right', bad && 'wrong'].filter(Boolean).join(' ');
-    const who = (bad || []).map((pid) => avatar(nameOf(pid), 'sm')).join('') + (open && e.result && c.id === e.answer.id ? avatar(nameOf(e.result.by), 'sm') : '');
-    return `<button type="button" class="${cls}" data-choice="${c.id}" data-name="${esc(c.name)}" ${canGuess && !bad ? '' : 'disabled'}>${esc(c.name)}${who ? `<span class="ce-who">${who}</span>` : ''}</button>`;
+    const isAns = e.answer && c.id === e.answer.id;
+    const cls = ['ce-choice', open && isAns && 'right', amOpener && isAns && 'picked', bad && 'wrong'].filter(Boolean).join(' ');
+    const who = (bad || []).map((pid) => avatar(nameOf(pid), 'sm')).join('') + (open && e.result && isAns ? avatar(nameOf(e.result.by), 'sm') : '');
+    return `<button type="button" class="${cls}" data-choice="${c.id}" ${canAnswer && !bad ? '' : 'disabled'}>${esc(c.name)}${who ? `<span class="ce-who">${who}</span>` : ''}</button>`;
   }).join('');
-  if ($('ceChoices').dataset.sig !== `${e.seq}|${canGuess}`) {
-    $('ceChoices').dataset.sig = `${e.seq}|${canGuess}`;
-    $('ceChoices').innerHTML = choicesHtml;
-  }
 
-  // ปุ่มส่งต่อ / ข้ามข้อ + เฉลย + เครดิตรูป
+  // เฉลย + เครดิตรูป + ปุ่มหัวห้อง
   let html = '';
-  if (canGuess) html += `<p class="center"><button type="button" class="secondary" data-ce-pass>➡️ ยังไม่รู้ ส่งต่อ</button></p>`;
   if (open && e.answer && !over) {
-    html += `<div class="card ce-result"><p class="center"><b>${esc(e.answer.name)}</b> · ${esc(e.answer.kind)}${e.result ? `<br>🎉 ${esc(nameOf(e.result.by))} +${e.result.pts} แต้ม (เปิด ${e.result.opened} ชิ้น)` : ''}</p>
+    html += `<div class="card ce-result"><p class="center"><b>${esc(e.answer.name)}</b> · ${esc(e.answer.kind)}${e.result ? `<br>🎉 ${esc(nameOf(e.result.by))} +${e.result.pts} · คนเปิด ${esc(nameOf(e.opener))} +${e.result.bonus} (เปิด ${e.result.opened} ชิ้น)` : ''}</p>
       <p class="ce-credit">รูป: <a href="${esc(e.answer.page)}" target="_blank" rel="noopener">Wikipedia / Wikimedia Commons</a></p></div>`;
   }
-  if (isHost && !over && !canGuess) html += `<p class="center"><button type="button" class="secondary small" data-ce-pass>${open ? '⏭️ ข้อถัดไป' : '⏭️ ข้ามข้อนี้ (เฉลยเลย)'}</button></p>`;
+  if (isHost && !over) html += `<p class="center"><button type="button" class="secondary small" data-ce-pass>${open ? '⏭️ ข้อถัดไป' : '⏭️ ข้ามข้อนี้ (เฉลยเลย)'}</button></p>`;
   $('ceResult').innerHTML = html;
 
   // การ์ดผู้เล่น
   $('players').innerHTML = s.players.filter((p) => p.id !== s.me).map((p) => {
-    let status = over ? `${e.gained[p.id] || 0} แต้มเกมนี้` : open ? (e.result && e.result.by === p.id ? `🎉 +${e.result.pts}` : '') : p.id === e.current ? '🧩 ถึงตา' : e.out.includes(p.id) ? '❌ ทายผิดแล้ว' : '';
+    let status = over ? `${e.gained[p.id] || 0} แต้มเกมนี้` : open ? (e.result && e.result.by === p.id ? `🎉 +${e.result.pts}` : p.id === e.opener && e.result ? `🧩 +${e.result.bonus}` : '') : p.id === e.opener ? '🧩 คนเปิด' : e.out.includes(p.id) ? '❌ ตอบผิดแล้ว' : '🤔 จ้องรูปอยู่';
     if (!p.connected) status = '💤 ไม่ได้เปิดเกม';
-    const cls = ['player', !p.connected && 'off', p.id === e.current && 'selected'].filter(Boolean).join(' ');
+    const cls = ['player', !p.connected && 'off', p.id === e.opener && 'selected'].filter(Boolean).join(' ');
     return `<div class="${cls}">
       ${p.id === s.hostId ? '<span class="crown" title="หัวห้อง">👑</span>' : ''}
       <span class="score">${p.score} แต้ม</span>
@@ -2729,8 +2720,8 @@ function feedItem(f) {
       if (f.reason === 'guessed') return `<li class="ok">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
       return `<li class="muted">🏁 จบรอบ — คำคือ "${esc(f.word)}"</li>`;
     case 'om-draw': return `<li class="${f.pairRank ? 'ok' : 'muted'}">🃏 <b>${esc(f.name)}</b> ดึงจาก ${esc(f.from)}${f.pairRank ? ` → ได้คู่ ${({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[f.pairRank] || f.pairRank)} 🎉` : ''}</li>`;
-    case 'ce-reveal': return `<li class="${f.by ? 'ok' : 'muted'}">🧩 ข้อ ${f.n}: <b>${esc(f.name)}</b> — ${f.by ? `${esc(f.by)} ทายถูก +${f.pts} (เปิด ${f.opened} ชิ้น)` : 'ไม่มีใครทายถูก'}</li>`;
-    case 'ce-wrong': return `<li class="bad">❌ ${esc(f.name)} ทายผิด หมดสิทธิ์ข้อนี้</li>`;
+    case 'ce-reveal': return `<li class="${f.by ? 'ok' : 'muted'}">🧩 ข้อ ${f.n}: <b>${esc(f.name)}</b> — ${f.by ? `${esc(f.by)} ตอบถูก +${f.pts} (เปิด ${f.opened} ชิ้น)` : 'ไม่มีใครทายถูก'}</li>`;
+    case 'ce-wrong': return `<li class="bad">❌ ${esc(f.name)} ตอบผิด หมดสิทธิ์ข้อนี้</li>`;
     case 'ce-over': return f.winners && f.winners.length ? `<li class="ok">🏆 ทายคนดังจบแล้ว! ผู้ชนะ: <b>${f.winners.map(esc).join(', ')}</b></li>` : '<li class="muted">🏁 จบเกมทายคนดัง</li>';
     case 'sk-done': return `<li>✏️ <b>${esc(f.name)}</b> วาดเสร็จเป็นคนที่ ${f.n}</li>`;
     case 'sk-stop': return `<li class="muted">✋ หยุด! ${f.names.length ? `เสร็จก่อน: ${f.names.map(esc).join(', ')}` : 'หมดเวลาวาด'}</li>`;
